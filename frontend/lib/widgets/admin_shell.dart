@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_breakpoints.dart';
 import '../theme/app_colors.dart';
 import 'avatar_iniciales.dart';
 
@@ -31,6 +32,28 @@ class AdminShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.esMovil) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: Text(items[indiceSeleccionado].etiqueta)),
+        drawer: Drawer(
+          backgroundColor: AppColors.navy,
+          child: SafeArea(
+            child: _SidebarContenido(
+              items: items,
+              indiceSeleccionado: indiceSeleccionado,
+              nombreUsuario: nombreUsuario,
+              onSeleccionar: (i) {
+                Navigator.of(context).pop();
+                onSeleccionar(i);
+              },
+            ),
+          ),
+        ),
+        body: child,
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Row(
@@ -66,48 +89,86 @@ class _Sidebar extends StatelessWidget {
     return Container(
       width: 210,
       color: AppColors.navy,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 24, 20, 20),
-            child: Text(
-              'INDI Combustible',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
-            ),
-          ),
-          for (var i = 0; i < items.length; i++)
-            _ItemNav(
-              item: items[i],
-              activo: i == indiceSeleccionado,
-              onTap: () => onSeleccionar(i),
-            ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                AvatarIniciales(nombre: nombreUsuario, diametro: 34),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    nombreUsuario,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: _SidebarContenido(
+        items: items,
+        indiceSeleccionado: indiceSeleccionado,
+        onSeleccionar: onSeleccionar,
+        nombreUsuario: nombreUsuario,
       ),
     );
   }
 }
 
+/// Contenido de la sidebar sin ancho fijo: lo usa tanto `_Sidebar` (escritorio,
+/// ancho fijo de 210) como el `Drawer` de móvil (ancho lo controla el propio Drawer).
+class _SidebarContenido extends StatelessWidget {
+  const _SidebarContenido({
+    required this.items,
+    required this.indiceSeleccionado,
+    required this.onSeleccionar,
+    required this.nombreUsuario,
+  });
+
+  final List<AdminNavItem> items;
+  final int indiceSeleccionado;
+  final ValueChanged<int> onSeleccionar;
+  final String nombreUsuario;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 24, 20, 20),
+          child: Text(
+            'INDI Combustible',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
+          ),
+        ),
+        for (var i = 0; i < items.length; i++)
+          _ItemNav(
+            item: items[i],
+            activo: i == indiceSeleccionado,
+            onTap: () => onSeleccionar(i),
+          ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              AvatarIniciales(nombre: nombreUsuario, diametro: 34),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  nombreUsuario,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ItemNav extends StatelessWidget {
-  const _ItemNav({required this.item, required this.activo, required this.onTap});
+  const _ItemNav({
+    required this.item,
+    required this.activo,
+    required this.onTap,
+  });
 
   final AdminNavItem item;
   final bool activo;
@@ -127,7 +188,11 @@ class _ItemNav extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             child: Row(
               children: [
-                Icon(item.icono, size: 18, color: activo ? Colors.white : Colors.white60),
+                Icon(
+                  item.icono,
+                  size: 18,
+                  color: activo ? Colors.white : Colors.white60,
+                ),
                 const SizedBox(width: 12),
                 Text(
                   item.etiqueta,

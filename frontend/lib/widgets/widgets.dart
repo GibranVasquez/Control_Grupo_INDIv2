@@ -4,6 +4,7 @@ export 'carga_simulada.dart';
 export 'estado_solicitud_badge.dart';
 export 'estado_vacio.dart';
 export 'fuel_type_chip_selector.dart';
+export 'responsive_center.dart';
 export 'segmentador_periodo.dart';
 export 'stepper_control.dart';
 export 'sync_status_badge.dart';

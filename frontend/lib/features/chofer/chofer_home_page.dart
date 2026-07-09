@@ -22,41 +22,49 @@ class ChoferHomePage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(child: _Encabezado(perfil: perfil, vehiculo: vehiculo)),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-            sliver: SliverList.list(
-              children: [
-                _BotonSolicitar(
-                  onTap: () => context.push(AppRoutes.solicitarLitros),
-                ),
-                const SizedBox(height: 28),
-                const Text(
-                  'MIS SOLICITUDES',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 13,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (solicitudes.isEmpty)
-                  const EstadoVacio(
-                    mensaje: 'Todavía no has hecho ninguna solicitud.',
-                    icono: Icons.local_gas_station_outlined,
-                  )
-                else
-                  for (final solicitud in solicitudes) ...[
-                    _TarjetaSolicitud(solicitud: solicitud, vehiculo: vehiculo),
-                    const SizedBox(height: 12),
-                  ],
-              ],
+      body: ResponsiveCenter(
+        maxWidth: 560,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _Encabezado(perfil: perfil, vehiculo: vehiculo),
             ),
-          ),
-        ],
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              sliver: SliverList.list(
+                children: [
+                  _BotonSolicitar(
+                    onTap: () => context.push(AppRoutes.solicitarLitros),
+                  ),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'MIS SOLICITUDES',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (solicitudes.isEmpty)
+                    const EstadoVacio(
+                      mensaje: 'Todavía no has hecho ninguna solicitud.',
+                      icono: Icons.local_gas_station_outlined,
+                    )
+                  else
+                    for (final solicitud in solicitudes) ...[
+                      _TarjetaSolicitud(
+                        solicitud: solicitud,
+                        vehiculo: vehiculo,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -94,7 +102,11 @@ class _Encabezado extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.local_gas_station, color: Colors.white, size: 18),
+              const Icon(
+                Icons.local_gas_station,
+                color: Colors.white,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Combustible',
@@ -195,7 +207,11 @@ class _BotonSolicitar extends StatelessWidget {
               const SizedBox(width: 10),
               const Text(
                 'Solicitar litros para mañana',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
               ),
             ],
           ),
@@ -217,7 +233,8 @@ class _TarjetaSolicitud extends StatelessWidget {
 
     return GestureDetector(
       onTap: solicitud.estado == EstadoSolicitud.autorizado
-          ? () => context.push(AppRoutes.respuestaAutorizacion, extra: solicitud)
+          ? () =>
+                context.push(AppRoutes.respuestaAutorizacion, extra: solicitud)
           : null,
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -235,7 +252,10 @@ class _TarjetaSolicitud extends StatelessWidget {
                 Expanded(
                   child: Text(
                     fecha,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 EstadoSolicitudBadge(estado: solicitud.estado),
@@ -244,7 +264,10 @@ class _TarjetaSolicitud extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '${solicitud.litrosSolicitados.toStringAsFixed(0)} L solicitados · ${vehiculo.descripcion}',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+              ),
             ),
             if (solicitud.creadoOffline) ...[
               const SizedBox(height: 10),

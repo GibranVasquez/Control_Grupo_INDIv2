@@ -83,6 +83,9 @@ class _ConcentradoCargasPageState extends State<ConcentradoCargasPage> {
               ),
               clipBehavior: Clip.antiAlias,
               child: DataTable2(
+                // 11 columnas: en móvil/tablet angosta se vuelve scroll horizontal en vez de
+                // comprimirse hasta ilegible (ver mismo patrón en resumen_financiero_page.dart).
+                minWidth: 1100,
                 headingRowColor: WidgetStatePropertyAll(AppColors.navy),
                 headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
                 dataRowHeight: 44,

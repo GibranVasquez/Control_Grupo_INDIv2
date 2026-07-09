@@ -29,9 +29,9 @@ class _ComprobarCargaPageState extends State<ComprobarCargaPage> {
   static const _kmAnterior = 18420;
 
   Vehiculo get _vehiculo => DatosDemo.vehiculosObra.firstWhere(
-        (v) => v.id == widget.solicitud.vehiculoId,
-        orElse: () => DatosDemo.vehiculoAsignado,
-      );
+    (v) => v.id == widget.solicitud.vehiculoId,
+    orElse: () => DatosDemo.vehiculoAsignado,
+  );
 
   bool get _esMaquinaria => _vehiculo.tipoUnidad == TipoUnidad.maquinaria;
 
@@ -41,7 +41,9 @@ class _ComprobarCargaPageState extends State<ComprobarCargaPage> {
     final r = _rendimiento;
     if (_esMaquinaria) {
       // Horómetro: L/h fuera de 2–25 se considera atípico para maquinaria pesada.
-      if (r < 2 || r > 25) return (etiqueta: '⚠ Revisar', color: AppColors.error);
+      if (r < 2 || r > 25) {
+        return (etiqueta: '⚠ Revisar', color: AppColors.error);
+      }
       if (r > 15) return (etiqueta: 'Alto', color: AppColors.warning);
       return (etiqueta: 'Normal', color: AppColors.success);
     }
@@ -58,14 +60,18 @@ class _ComprobarCargaPageState extends State<ComprobarCargaPage> {
   void _enviar() {
     if (_fotoTicket == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Falta la foto del ticket de la gasolinería.')),
+        const SnackBar(
+          content: Text('Falta la foto del ticket de la gasolinería.'),
+        ),
       );
       return;
     }
     // TODO: crear la carga vía CargaRepository — se confirma al instante, queda `creado_offline`
     // hasta que la foto y los datos suban de verdad.
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Carga registrada. Se sincronizará automáticamente.')),
+      const SnackBar(
+        content: Text('Carga registrada. Se sincronizará automáticamente.'),
+      ),
     );
     context.go('/chofer');
   }
@@ -83,139 +89,180 @@ class _ComprobarCargaPageState extends State<ComprobarCargaPage> {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.navy,
         elevation: 0,
-        title: const Text('Comprobar carga', style: TextStyle(color: AppColors.navy)),
+        title: const Text(
+          'Comprobar carga',
+          style: TextStyle(color: AppColors.navy),
+        ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: AppColors.navy,
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'DATOS DEL VEHÍCULO',
-                      style: TextStyle(
-                        color: Colors.white60,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 11,
-                        letterSpacing: 0.4,
+        child: ResponsiveCenter(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy,
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'DATOS DEL VEHÍCULO',
+                        style: TextStyle(
+                          color: Colors.white60,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          letterSpacing: 0.4,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    _FilaDato(label: 'Responsable', valor: DatosDemo.perfilChofer.nombreCompleto),
-                    _FilaDato(label: 'Modelo', valor: vehiculo.descripcion),
-                    _FilaDato(label: 'Placas', valor: vehiculo.placa, mono: true),
-                  ],
+                      const SizedBox(height: 10),
+                      _FilaDato(
+                        label: 'Responsable',
+                        valor: DatosDemo.perfilChofer.nombreCompleto,
+                      ),
+                      _FilaDato(label: 'Modelo', valor: vehiculo.descripcion),
+                      _FilaDato(
+                        label: 'Placas',
+                        valor: vehiculo.placa,
+                        mono: true,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              _ZonaFoto(foto: _fotoTicket, onTap: _tomarFoto),
-              const SizedBox(height: 24),
-              Text(_esMaquinaria ? 'HORAS DE OPERACIÓN' : 'KM DEL DÍA',
+                const SizedBox(height: 20),
+                _ZonaFoto(foto: _fotoTicket, onTap: _tomarFoto),
+                const SizedBox(height: 24),
+                Text(
+                  _esMaquinaria ? 'HORAS DE OPERACIÓN' : 'KM DEL DÍA',
                   style: const TextStyle(
-                      color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 13)),
-              const SizedBox(height: 8),
-              Center(
-                child: StepperControl(
-                  valor: _km,
-                  min: 0,
-                  max: _esMaquinaria ? 24 : 999,
-                  paso: 1,
-                  grande: false,
-                  onChanged: (v) => setState(() => _km = v),
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text('LITROS',
+                const SizedBox(height: 8),
+                Center(
+                  child: StepperControl(
+                    valor: _km,
+                    min: 0,
+                    max: _esMaquinaria ? 24 : 999,
+                    paso: 1,
+                    grande: false,
+                    onChanged: (v) => setState(() => _km = v),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'LITROS',
                   style: TextStyle(
-                      color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 13)),
-              const SizedBox(height: 8),
-              Center(
-                child: StepperControl(
-                  valor: _litros,
-                  min: 1,
-                  max: vehiculo.topeLitrosSemanal,
-                  paso: 1,
-                  grande: false,
-                  onChanged: (v) => setState(() => _litros = v),
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(AppRadii.card),
+                const SizedBox(height: 8),
+                Center(
+                  child: StepperControl(
+                    valor: _litros,
+                    min: 1,
+                    max: vehiculo.topeLitrosSemanal,
+                    paso: 1,
+                    grande: false,
+                    onChanged: (v) => setState(() => _litros = v),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('RENDIMIENTO',
+                const SizedBox(height: 24),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(AppRadii.card),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'RENDIMIENTO',
                               style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12)),
-                          const SizedBox(height: 4),
-                          Text(
-                            _esMaquinaria
-                                ? '${_rendimiento.toStringAsFixed(1)} L/h'
-                                : '${_rendimiento.toStringAsFixed(1)} km/L',
-                            style: AppTypography.mono(fontSize: 20, fontWeight: FontWeight.w600),
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _esMaquinaria
+                                  ? '${_rendimiento.toStringAsFixed(1)} L/h'
+                                  : '${_rendimiento.toStringAsFixed(1)} km/L',
+                              style: AppTypography.mono(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: semaforo.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppRadii.badge),
+                        ),
+                        child: Text(
+                          semaforo.etiqueta,
+                          style: TextStyle(
+                            color: semaforo.color,
+                            fontWeight: FontWeight.w800,
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: semaforo.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppRadii.badge),
-                      ),
-                      child: Text(
-                        semaforo.etiqueta,
-                        style: TextStyle(color: semaforo.color, fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              _FilaDesglose(label: 'Costo x litro', valor: formatoMoneda.format(_precioPorLitro)),
-              const Divider(color: AppColors.divider, height: 24),
-              _FilaDesglose(
-                label: 'Importe',
-                valor: formatoMoneda.format(importe),
-                destacado: true,
-              ),
-              const Divider(color: AppColors.divider, height: 24),
-              _FilaDesglose(
-                label: _esMaquinaria ? 'Horas acumuladas anteriores' : 'Km anterior registrado',
-                valor: _esMaquinaria ? '$_kmAnterior h' : '$_kmAnterior km',
-              ),
-            ],
+                const SizedBox(height: 24),
+                _FilaDesglose(
+                  label: 'Costo x litro',
+                  valor: formatoMoneda.format(_precioPorLitro),
+                ),
+                const Divider(color: AppColors.divider, height: 24),
+                _FilaDesglose(
+                  label: 'Importe',
+                  valor: formatoMoneda.format(importe),
+                  destacado: true,
+                ),
+                const Divider(color: AppColors.divider, height: 24),
+                _FilaDesglose(
+                  label: _esMaquinaria
+                      ? 'Horas acumuladas anteriores'
+                      : 'Km anterior registrado',
+                  valor: _esMaquinaria ? '$_kmAnterior h' : '$_kmAnterior km',
+                ),
+              ],
+            ),
           ),
         ),
       ),
       bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: ElevatedButton(
-            onPressed: _enviar,
-            child: const Text('Enviar comprobación'),
+        child: ResponsiveCenter(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: ElevatedButton(
+              onPressed: _enviar,
+              child: const Text('Enviar comprobación'),
+            ),
           ),
         ),
       ),
@@ -224,7 +271,11 @@ class _ComprobarCargaPageState extends State<ComprobarCargaPage> {
 }
 
 class _FilaDato extends StatelessWidget {
-  const _FilaDato({required this.label, required this.valor, this.mono = false});
+  const _FilaDato({
+    required this.label,
+    required this.valor,
+    this.mono = false,
+  });
 
   final String label;
   final String valor;
@@ -238,14 +289,20 @@ class _FilaDato extends StatelessWidget {
         children: [
           SizedBox(
             width: 100,
-            child: Text(label, style: const TextStyle(color: Colors.white60, fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.white60, fontSize: 13),
+            ),
           ),
           Expanded(
             child: Text(
               valor,
               style: mono
                   ? AppTypography.mono(color: Colors.white, fontSize: 14)
-                  : const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  : const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
             ),
           ),
         ],
@@ -277,20 +334,37 @@ class _ZonaFoto extends StatelessWidget {
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.camera_alt_rounded, color: Colors.white),
+                    child: const Icon(
+                      Icons.camera_alt_rounded,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  const Text('Tomar foto del ticket',
-                      style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Tomar foto del ticket',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               )
             : Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 32),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.success,
+                    size: 32,
+                  ),
                   const SizedBox(height: 8),
-                  const Text('Ticket capturado',
-                      style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Ticket capturado',
+                    style: TextStyle(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
       ),
@@ -349,7 +423,11 @@ class _BordePunteadoPainter extends CustomPainter {
 }
 
 class _FilaDesglose extends StatelessWidget {
-  const _FilaDesglose({required this.label, required this.valor, this.destacado = false});
+  const _FilaDesglose({
+    required this.label,
+    required this.valor,
+    this.destacado = false,
+  });
 
   final String label;
   final String valor;

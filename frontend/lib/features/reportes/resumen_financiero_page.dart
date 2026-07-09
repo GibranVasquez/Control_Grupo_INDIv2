@@ -105,6 +105,9 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
               ),
               clipBehavior: Clip.antiAlias,
               child: DataTable2(
+                // minWidth fuerza scroll horizontal en vez de comprimir columnas hasta ilegibles
+                // cuando la pantalla (móvil, o el Drawer angosto de AdminShell) es más chica que esto.
+                minWidth: 780,
                 headingRowColor: WidgetStatePropertyAll(AppColors.navy),
                 headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
                 dataRowHeight: 44,

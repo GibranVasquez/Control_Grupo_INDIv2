@@ -1,0 +1,20 @@
+name: local_auth_windows
+description: >
+  Stub que reemplaza la implementación real de local_auth_windows (dependency_override en el
+  pubspec.yaml del app). No declara ninguna plataforma de plugin, así que Flutter no genera
+  ni compila el proyecto nativo C++ para Windows. Ver README.md en esta carpeta.
+version: 1.0.11
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  local_auth_platform_interface: ^1.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

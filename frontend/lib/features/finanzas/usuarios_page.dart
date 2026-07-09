@@ -92,6 +92,7 @@ class _UsuariosPageState extends State<UsuariosPage> {
               ),
               clipBehavior: Clip.antiAlias,
               child: DataTable2(
+                minWidth: 640,
                 headingRowColor: const WidgetStatePropertyAll(AppColors.navy),
                 headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
                 dataRowHeight: 52,

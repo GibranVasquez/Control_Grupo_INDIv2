@@ -14,6 +14,8 @@ class SolicitudAutorizacion {
     this.resueltoEn,
     required this.creadoEn,
     required this.creadoOffline,
+    this.actividad,
+    this.responsable,
   });
 
   final String id;
@@ -32,6 +34,12 @@ class SolicitudAutorizacion {
   final DateTime? resueltoEn;
   final DateTime creadoEn;
 
+  /// Actividad reportada para la que se usará el combustible (ej. "suministro a maquinaria en tramo").
+  final String? actividad;
+
+  /// Persona que reporta/autoriza la carga en campo (ej. "Raúl Zárate"), distinta de resueltoPor.
+  final String? responsable;
+
   /// true mientras la solicitud fue creada sin conexión y no se ha sincronizado.
   final bool creadoOffline;
 
@@ -49,6 +57,8 @@ class SolicitudAutorizacion {
             json['resuelto_en'] == null ? null : DateTime.parse(json['resuelto_en'] as String),
         creadoEn: DateTime.parse(json['creado_en'] as String),
         creadoOffline: json['creado_offline'] as bool,
+        actividad: json['actividad'] as String?,
+        responsable: json['responsable'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -64,5 +74,7 @@ class SolicitudAutorizacion {
         'resuelto_en': resueltoEn?.toIso8601String(),
         'creado_en': creadoEn.toIso8601String(),
         'creado_offline': creadoOffline,
+        'actividad': actividad,
+        'responsable': responsable,
       };
 }

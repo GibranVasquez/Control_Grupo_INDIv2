@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../router/app_router.dart';
 import '../../state/auth_controller.dart';
+import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
@@ -36,6 +39,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           password: password,
         );
   }
+
+  Future<void> _entrarConBiometria() async {
+    final ok = await ref.read(authControllerProvider.notifier).iniciarSesionConBiometria();
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos validar tu huella/Face ID. Ingresa con tu usuario y contraseña.')),
+      );
+    }
+  }
+
+  void _irARegistro() => context.push(AppRoutes.registro);
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +123,18 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                           const SizedBox(height: 8),
                           _BotonIngresar(cargando: cargando, onPressed: _entrar),
+                          const SizedBox(height: 16),
+                          Center(
+                            child: TextButton(
+                              onPressed: cargando ? null : _irARegistro,
+                              child: const Text(
+                                '¿No tienes cuenta? Regístrate',
+                                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _BotonBiometria(cargando: cargando, onPressed: _entrarConBiometria),
                           const SizedBox(height: 22),
                           _DivisorConTexto(texto: 'o'),
                           const SizedBox(height: 22),
@@ -248,6 +274,38 @@ class _CampoPassword extends StatelessWidget {
           style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
         ),
       ),
+    );
+  }
+}
+
+/// Solo se muestra en Android/iOS (nunca Windows/web) y solo si ya hay una sesión
+/// previa guardada en este dispositivo: ver `puedeUsarBiometriaProvider`.
+class _BotonBiometria extends ConsumerWidget {
+  const _BotonBiometria({required this.cargando, required this.onPressed});
+
+  final bool cargando;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final puedeUsarBiometria = ref.watch(puedeUsarBiometriaProvider);
+
+    return puedeUsarBiometria.when(
+      data: (disponible) {
+        if (!disponible) return const SizedBox.shrink();
+        return Center(
+          child: TextButton.icon(
+            onPressed: cargando ? null : onPressed,
+            icon: const Icon(Icons.fingerprint, color: AppColors.primary),
+            label: const Text(
+              'Ingresar con Huella/Face ID',
+              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+            ),
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 }

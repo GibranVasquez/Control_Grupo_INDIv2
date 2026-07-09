@@ -16,12 +16,21 @@ dependencies:
   google_fonts: ^8.1.0
   image_picker: ^1.2.3
   intl: ^0.20.3
+  local_auth: ^2.3.0
+  shared_preferences: ^2.5.3
   supabase_flutter: ^2.16.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+# local_auth_windows real no compila con Visual Studio 2026 (usa <experimental/coroutine>,
+# que ese compilador elimina). No usamos biometría en Windows (ver BiometriaService), así que
+# lo reemplazamos por un stub sin proyecto nativo: ver packages/local_auth_windows_stub/.
+dependency_overrides:
+  local_auth_windows:
+    path: packages/local_auth_windows_stub
 
 flutter:
   uses-material-design: true
