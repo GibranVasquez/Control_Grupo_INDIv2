@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Manrope,system-ui,sans-serif;color:#0E1526;-webkit-font-smoothing:antialiased;background:#E7ECF4}
+  a{color:#0165F9;text-decoration:none}
+  a:hover{color:#0148c0}
+  input[type=range]{accent-color:#0165F9}
+</style>
+</helmet>
+<div style="padding:52px 56px 90px;display:flex;flex-direction:column;gap:46px;width:max-content;min-width:100%;background:#E7ECF4">
+
+  <!-- ===== MASTHEAD (identidad) ===== -->
+  <div style="display:flex;align-items:center;gap:18px">
+    <img src="assets/indi-logo.jpg" alt="INDI" style="width:62px;height:62px;border-radius:15px;box-shadow:0 10px 26px -10px rgba(1,101,249,.6);display:block" />
+    <div>
+      <div style="font-size:27px;font-weight:800;letter-spacing:-0.6px;color:#0A1E44">INDI <span style="color:#0165F9">Combustible</span></div>
+      <div style="font-size:14px;color:#5A6B86;font-weight:600;margin-top:1px">Grupo INDI · Ingeniería y Construcción · Obra Tren Golfo de México</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px">
+      <div style="background:#fff;border:1px solid #DCE3EE;border-radius:11px;padding:10px 16px;font-size:13px;font-weight:700;color:#5A6B86">Semana 22 · 2026</div>
+    </div>
+  </div>
+
+  <!-- ===== FLUJO ===== -->
+  <div style="background:#fff;border:1px solid #DCE3EE;border-radius:16px;padding:22px 26px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px -4px rgba(10,30,68,.12)">
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="width:32px;height:32px;border-radius:9px;background:#0165F9;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center">1</div>
+      <div><div style="font-weight:700;font-size:13.5px">Inicia sesión</div><div style="font-size:11.5px;color:#7A879E">Chofer · nº empleado</div></div>
+    </div>
+    <div style="color:#C3CCDB;font-size:18px">→</div>
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="width:32px;height:32px;border-radius:9px;background:#0165F9;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center">2</div>
+      <div><div style="font-weight:700;font-size:13.5px">Solicita litros</div><div style="font-size:11.5px;color:#7A879E">para el día siguiente</div></div>
+    </div>
+    <div style="color:#C3CCDB;font-size:18px">→</div>
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="width:32px;height:32px;border-radius:9px;background:#0165F9;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center">3</div>
+      <div><div style="font-weight:700;font-size:13.5px">Admin autoriza</div><div style="font-size:11.5px;color:#7A879E">total o menos + motivo</div></div>
+    </div>
+    <div style="color:#C3CCDB;font-size:18px">→</div>
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="width:32px;height:32px;border-radius:9px;background:#0A1E44;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center">4</div>
+      <div><div style="font-weight:700;font-size:13.5px">Carga y foto</div><div style="font-size:11.5px;color:#7A879E">ticket + datos del viaje</div></div>
+    </div>
+    <div style="color:#C3CCDB;font-size:18px">→</div>
+    <div style="display:flex;align-items:center;gap:12px;flex:1">
+      <div style="width:32px;height:32px;border-radius:9px;background:#0A1E44;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center">5</div>
+      <div><div style="font-weight:700;font-size:13.5px">Concentrado</div><div style="font-size:11.5px;color:#7A879E">y finanzas · automático</div></div>
+    </div>
+  </div>
+
+  <!-- ===== SECCIÓN 1 : APP CHOFER ===== -->
+  <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1.5px;color:#0165F9">01 · APP DEL CHOFER</div>
+    <div style="font-size:13.5px;color:#5A6B86;font-weight:600">Móvil · letra grande, botones grandes, pocos pasos</div>
+  </div>
+
+  <div style="display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start">
+
+    <!-- PHONE 0: LOGIN -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:#0A1E44">1 · Inicio de sesión</div>
+      <div style="width:340px;background:#151C2B;border-radius:44px;padding:12px;box-shadow:0 30px 60px -24px rgba(10,30,68,.5)">
+        <div style="border-radius:34px;overflow:hidden;height:710px;display:flex;flex-direction:column;background:#fff">
+          <!-- brand top -->
+          <div style="background:linear-gradient(160deg,#0165F9,#0a3fb0);padding:40px 26px 34px;color:#fff;position:relative">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;margin-bottom:26px;opacity:.9"><span>7:51</span><span>📶 🔋</span></div>
+            <img src="assets/indi-logo.jpg" alt="INDI" style="width:66px;height:66px;border-radius:17px;box-shadow:0 12px 30px -8px rgba(0,0,0,.4);display:block" />
+            <div style="font-size:24px;font-weight:800;margin-top:20px;letter-spacing:-.4px">INDI Combustible</div>
+            <div style="font-size:14.5px;opacity:.85;font-weight:600;margin-top:4px">Control de combustible en obra</div>
+          </div>
+          <!-- form -->
+          <div style="padding:26px 24px;flex:1;display:flex;flex-direction:column">
+            <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:8px">NÚMERO DE EMPLEADO</div>
+            <div style="background:#F4F6FA;border:1.5px solid #E2E7F0;border-radius:14px;padding:16px 16px;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:19px;color:#0E1526;margin-bottom:18px">INDI-04871</div>
+
+            <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:8px">CONTRASEÑA</div>
+            <div style="background:#F4F6FA;border:1.5px solid #E2E7F0;border-radius:14px;padding:16px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-size:22px;letter-spacing:4px;color:#0E1526">••••••</span>
+              <span style="font-size:14px;color:#0165F9;font-weight:700">Ver</span>
+            </div>
+            <div style="text-align:right;font-size:13.5px;color:#0165F9;font-weight:700;margin-bottom:22px">¿Olvidaste tu contraseña?</div>
+
+            <button style="width:100%;background:#0165F9;color:#fff;border:none;border-radius:15px;padding:18px;font-family:Manrope;font-weight:800;font-size:18px;cursor:pointer;box-shadow:0 12px 26px -10px rgba(1,101,249,.65)">Ingresar</button>
+
+            <div style="display:flex;align-items:center;gap:12px;margin:20px 0">
+              <div style="flex:1;height:1px;background:#E2E7F0"></div>
+              <div style="font-size:12.5px;color:#9AA4B4;font-weight:700">o</div>
+              <div style="flex:1;height:1px;background:#E2E7F0"></div>
+            </div>
+
+            <button style="width:100%;background:#fff;color:#0A1E44;border:1.5px solid #DCE3EE;border-radius:15px;padding:16px;font-family:Manrope;font-weight:800;font-size:15.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">
+              <img src="assets/indi-logo.jpg" alt="" style="width:22px;height:22px;border-radius:6px" /> Acceso corporativo INDI
+            </button>
+            <div style="text-align:center;font-size:12.5px;color:#9AA4B4;font-weight:600;margin-top:auto;padding-top:20px">Grupo INDI © 2026 · v1.0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 1: INICIO -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:#0A1E44">2 · Inicio · mis solicitudes</div>
+      <div style="width:340px;background:#151C2B;border-radius:44px;padding:12px;box-shadow:0 30px 60px -24px rgba(10,30,68,.5)">
+        <div style="border-radius:34px;overflow:hidden;height:710px;display:flex;flex-direction:column;background:#F4F6FA">
+          <div style="background:linear-gradient(160deg,#0165F9,#0a3fb0);padding:14px 24px 22px;color:#fff">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700;margin-bottom:14px;opacity:.9">
+              <span style="display:flex;align-items:center;gap:8px"><img src="assets/indi-logo.jpg" alt="" style="width:22px;height:22px;border-radius:6px" /> Combustible</span><span>📶 🔋</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:14px;opacity:.85;font-weight:600">Buen día,</div>
+                <div style="font-size:22px;font-weight:800;line-height:1.1">Germán Hernández</div>
+              </div>
+              <div style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px">GH</div>
+            </div>
+            <div style="background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:14px 16px;margin-top:18px">
+              <div style="font-size:13px;opacity:.85;font-weight:600">Mi vehículo</div>
+              <div style="font-weight:800;font-size:18px;margin-top:2px">Nissan NP300 · LLE-146-A</div>
+            </div>
+          </div>
+          <div style="padding:20px 20px 0;flex:1;overflow:auto">
+            <button style="width:100%;background:#0165F9;color:#fff;border:none;border-radius:16px;padding:20px;font-family:Manrope;font-weight:800;font-size:18px;cursor:pointer;box-shadow:0 14px 28px -12px rgba(1,101,249,.7);display:flex;align-items:center;justify-content:center;gap:10px">⛽ Solicitar litros para mañana</button>
+            <div style="font-size:13px;font-weight:800;letter-spacing:.6px;color:#5A6B86;margin:22px 4px 12px">MIS SOLICITUDES</div>
+
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:16px;padding:16px 17px;margin-bottom:13px;box-shadow:0 4px 14px -10px rgba(10,30,68,.3)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-weight:800;font-size:16px">Miércoles 28 May</div>
+                <div style="background:#E7F6F0;color:#0E9F6E;font-size:12.5px;font-weight:800;padding:5px 12px;border-radius:20px">✓ AUTORIZADO</div>
+              </div>
+              <div style="font-size:15px;color:#5A6B86;margin-top:8px;font-weight:600">35 L de 40 · Magna</div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:16px;padding:16px 17px;margin-bottom:13px;box-shadow:0 4px 14px -10px rgba(10,30,68,.3)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-weight:800;font-size:16px">Jueves 29 May</div>
+                <div style="background:#FEF3E0;color:#C77C0A;font-size:12.5px;font-weight:800;padding:5px 12px;border-radius:20px">⏳ EN ESPERA</div>
+              </div>
+              <div style="font-size:15px;color:#5A6B86;margin-top:8px;font-weight:600">40 L solicitados · Magna</div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:16px;padding:16px 17px;box-shadow:0 4px 14px -10px rgba(10,30,68,.3)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-weight:800;font-size:16px">Martes 27 May</div>
+                <div style="background:#EAF1FF;color:#0165F9;font-size:12.5px;font-weight:800;padding:5px 12px;border-radius:20px">✓ CARGADO</div>
+              </div>
+              <div style="font-size:15px;color:#5A6B86;margin-top:8px;font-weight:600">38.4 L · $921.94 · ticket ✓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 2: SOLICITAR -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:#0A1E44">3 · Solicitar litros para mañana</div>
+      <div style="width:340px;background:#151C2B;border-radius:44px;padding:12px;box-shadow:0 30px 60px -24px rgba(10,30,68,.5)">
+        <div style="border-radius:34px;overflow:hidden;height:710px;display:flex;flex-direction:column;background:#F4F6FA">
+          <div style="display:flex;align-items:center;gap:14px;padding:18px 22px 16px;background:#fff;border-bottom:1px solid #EEF1F6">
+            <span style="font-size:26px;color:#0165F9">‹</span>
+            <span style="font-weight:800;font-size:18px">Solicitar litros</span>
+          </div>
+          <div style="padding:20px;flex:1;overflow:auto">
+            <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:8px">PARA EL DÍA</div>
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:14px;padding:15px 16px;font-weight:800;font-size:17px;margin-bottom:20px">Jueves 29 de mayo</div>
+
+            <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:10px">¿QUÉ COMBUSTIBLE?</div>
+            <div style="display:flex;gap:10px;margin-bottom:22px">
+              <div style="flex:1;text-align:center;background:#0165F9;color:#fff;border-radius:14px;padding:15px 0;font-weight:800;font-size:16px">Magna</div>
+              <div style="flex:1;text-align:center;background:#fff;border:1px solid #E4E9F2;border-radius:14px;padding:15px 0;font-weight:700;font-size:16px;color:#5A6B86">Premium</div>
+              <div style="flex:1;text-align:center;background:#fff;border:1px solid #E4E9F2;border-radius:14px;padding:15px 0;font-weight:700;font-size:16px;color:#5A6B86">Diésel</div>
+            </div>
+
+            <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:12px">¿CUÁNTOS LITROS?</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #E4E9F2;border-radius:20px;padding:12px 14px">
+              <button onClick="{{ decReq }}" style="width:60px;height:60px;border-radius:16px;border:none;background:#EAF1FF;font-size:34px;cursor:pointer;color:#0165F9;font-weight:700;line-height:1">−</button>
+              <div style="text-align:center"><div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:44px;line-height:1;color:#0E1526">{{ reqL }}</div><div style="font-size:14px;color:#5A6B86;font-weight:700;margin-top:2px">litros</div></div>
+              <button onClick="{{ incReq }}" style="width:60px;height:60px;border-radius:16px;border:none;background:#EAF1FF;font-size:34px;cursor:pointer;color:#0165F9;font-weight:700;line-height:1">+</button>
+            </div>
+            <div style="text-align:center;font-size:14px;color:#5A6B86;margin-top:14px;font-weight:600">Cuesta aprox. <b style="color:#0165F9;font-family:'IBM Plex Mono',monospace">{{ reqImporte }}</b></div>
+
+            <div style="font-size:13px;font-weight:800;color:#5A6B86;margin:22px 0 8px">¿POR QUÉ? (opcional)</div>
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:14px;padding:15px 16px;font-size:15px;color:#9AA4B4;min-height:58px">Ej. voy hasta el frente de obra…</div>
+          </div>
+          <div style="padding:16px 20px 22px;background:#fff;border-top:1px solid #EEF1F6">
+            <button style="width:100%;background:#0165F9;color:#fff;border:none;border-radius:16px;padding:19px;font-family:Manrope;font-weight:800;font-size:18px;cursor:pointer">Enviar solicitud</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 3: AUTORIZACIÓN RECIBIDA -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:#0A1E44">4 · Respuesta del admin</div>
+      <div style="width:340px;background:#151C2B;border-radius:44px;padding:12px;box-shadow:0 30px 60px -24px rgba(10,30,68,.5)">
+        <div style="border-radius:34px;overflow:hidden;height:710px;display:flex;flex-direction:column;background:#F4F6FA">
+          <div style="display:flex;align-items:center;gap:14px;padding:18px 22px 16px;background:#fff;border-bottom:1px solid #EEF1F6">
+            <span style="font-size:26px;color:#0165F9">‹</span>
+            <span style="font-weight:800;font-size:18px">Miércoles 28 May</span>
+          </div>
+          <div style="padding:26px 20px;flex:1;overflow:auto">
+            <div style="display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:24px">
+              <div style="width:82px;height:82px;border-radius:50%;background:#E7F6F0;display:flex;align-items:center;justify-content:center;color:#0E9F6E;font-size:42px;font-weight:700">✓</div>
+              <div style="font-weight:800;font-size:24px;margin-top:16px">¡Autorizado!</div>
+              <div style="font-size:15px;color:#5A6B86;font-weight:600;margin-top:4px">por Ing. Ulises Martínez</div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:18px;padding:6px 18px;box-shadow:0 4px 14px -10px rgba(10,30,68,.3)">
+              <div style="display:flex;justify-content:space-between;padding:16px 0;border-bottom:1px solid #EEF1F6"><span style="color:#5A6B86;font-size:15px;font-weight:700">Solicitaste</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:16px">40 L</span></div>
+              <div style="display:flex;justify-content:space-between;padding:16px 0;align-items:center"><span style="color:#5A6B86;font-size:15px;font-weight:700">Te autorizaron</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:26px;color:#0E9F6E">35 L</span></div>
+            </div>
+
+            <div style="background:#FEF3E0;border:1px solid #F5D9A8;border-radius:16px;padding:16px 17px;margin-top:16px">
+              <div style="font-size:12.5px;font-weight:800;letter-spacing:.4px;color:#C77C0A;margin-bottom:6px">MOTIVO</div>
+              <div style="font-size:15.5px;line-height:1.5;color:#7A5410">Recorrido corto en zona urbana, no necesitas el total que solicitaste.</div>
+            </div>
+          </div>
+          <div style="padding:16px 20px 22px;background:#fff;border-top:1px solid #EEF1F6">
+            <button style="width:100%;background:#0165F9;color:#fff;border:none;border-radius:16px;padding:19px;font-family:Manrope;font-weight:800;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px">✓ Ya cargué · comprobar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 4: COMPROBAR CARGA -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:#0A1E44">5 · Comprobar carga + ticket</div>
+      <div style="width:340px;background:#151C2B;border-radius:44px;padding:12px;box-shadow:0 30px 60px -24px rgba(10,30,68,.5)">
+        <div style="border-radius:34px;overflow:hidden;height:710px;display:flex;flex-direction:column;background:#F4F6FA">
+          <div style="display:flex;align-items:center;gap:14px;padding:18px 22px 16px;background:#fff;border-bottom:1px solid #EEF1F6">
+            <span style="font-size:26px;color:#0165F9">‹</span>
+            <span style="font-weight:800;font-size:18px">Comprobar carga</span>
+          </div>
+          <div style="padding:18px 20px;flex:1;overflow:auto">
+
+            <div style="background:#0A1E44;border-radius:16px;padding:16px 18px;color:#fff;margin-bottom:16px">
+              <div style="font-size:12px;font-weight:800;letter-spacing:.6px;opacity:.65;margin-bottom:10px">DATOS DEL VEHÍCULO</div>
+              <div style="display:flex;gap:14px">
+                <div style="flex:1"><div style="font-size:12px;opacity:.7;font-weight:600">Responsable</div><div style="font-weight:800;font-size:15px;margin-top:2px">Germán Hernández</div></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:12px">
+                <div style="flex:1"><div style="font-size:12px;opacity:.7;font-weight:600">Modelo</div><div style="font-weight:800;font-size:15px;margin-top:2px">Nissan NP300</div></div>
+                <div style="flex:1"><div style="font-size:12px;opacity:.7;font-weight:600">Placas</div><div style="font-weight:800;font-size:15px;margin-top:2px;font-family:'IBM Plex Mono',monospace">LLE-146-A</div></div>
+              </div>
+            </div>
+
+            <div style="border:2px dashed #B7C4D9;border-radius:16px;background:#fff;padding:22px;text-align:center;margin-bottom:16px">
+              <div style="width:56px;height:56px;border-radius:16px;background:#0165F9;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px">📷</div>
+              <div style="font-weight:800;font-size:17px">Tomar foto del ticket</div>
+              <div style="font-size:13.5px;color:#8A94A6;margin-top:4px;font-weight:600">gasolinería · litros · importe</div>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-bottom:14px">
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:8px">KM DEL DÍA</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #E4E9F2;border-radius:14px;padding:8px">
+                  <button onClick="{{ decKm }}" style="width:40px;height:40px;border-radius:11px;border:none;background:#EAF1FF;cursor:pointer;color:#0165F9;font-size:24px;font-weight:700;line-height:1">−</button>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:19px">{{ loadKm }}</span>
+                  <button onClick="{{ incKm }}" style="width:40px;height:40px;border-radius:11px;border:none;background:#EAF1FF;cursor:pointer;color:#0165F9;font-size:24px;font-weight:700;line-height:1">+</button>
+                </div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:800;color:#5A6B86;margin-bottom:8px">LITROS</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #E4E9F2;border-radius:14px;padding:8px">
+                  <button onClick="{{ decLoad }}" style="width:40px;height:40px;border-radius:11px;border:none;background:#EAF1FF;cursor:pointer;color:#0165F9;font-size:24px;font-weight:700;line-height:1">−</button>
+                  <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:19px">{{ loadL }}</span>
+                  <button onClick="{{ incLoad }}" style="width:40px;height:40px;border-radius:11px;border:none;background:#EAF1FF;cursor:pointer;color:#0165F9;font-size:24px;font-weight:700;line-height:1">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:16px;padding:14px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+              <div><div style="font-size:12.5px;color:#8A94A6;font-weight:800">RENDIMIENTO</div><div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:19px;margin-top:2px">{{ kmL }} km/L</div></div>
+              <div style="{{ kmLBadgeStyle }}">{{ kmLBadge }}</div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E4E9F2;border-radius:16px;padding:6px 16px">
+              <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px dashed #E4E9F2"><span style="color:#5A6B86;font-size:14px;font-weight:700">Costo x litro</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:15px">$23.99</span></div>
+              <div style="display:flex;justify-content:space-between;padding:12px 0;align-items:center"><span style="color:#5A6B86;font-size:15px;font-weight:800">Importe</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:24px;color:#0165F9">{{ loadImporte }}</span></div>
+            </div>
+            <div style="font-size:13.5px;color:#8A94A6;margin-top:10px;font-weight:600">Gasolinería: <b style="color:#0E1526">Pemex Km 12, Coatzacoalcos</b></div>
+          </div>
+          <div style="padding:16px 20px 22px;background:#fff;border-top:1px solid #EEF1F6">
+            <button style="width:100%;background:#0165F9;color:#fff;border:none;border-radius:16px;padding:19px;font-family:Manrope;font-weight:800;font-size:18px;cursor:pointer">Enviar comprobación</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== SECCIÓN 2 : PANEL ADMIN ===== -->
+  <div style="display:flex;align-items:baseline;gap:12px;margin-top:14px">
+    <div style="font-size:12px;font-weight:800;letter-spacing:1.5px;color:#0165F9">02 · PANEL DE ADMINISTRACIÓN</div>
+    <div style="font-size:13.5px;color:#5A6B86;font-weight:600">Web y móvil · autoriza, concentra y controla finanzas</div>
+  </div>
+
+  <!-- BROWSER: BANDEJA DE AUTORIZACIONES -->
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:13px;font-weight:700;color:#0A1E44">Bandeja de autorizaciones · reglas de tope y comentario obligatorio</div>
+    <div style="width:1080px;max-width:100%;background:#fff;border:1px solid #D3DAE6;border-radius:16px;overflow:hidden;box-shadow:0 24px 50px -28px rgba(10,30,68,.45)">
+      <div style="background:#0E1526;display:flex;align-items:center;gap:8px;padding:12px 16px">
+        <span style="width:11px;height:11px;border-radius:50%;background:#FF5F57"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#FEBC2E"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#28C840"></span>
+        <div style="flex:1;text-align:center;background:#232C40;border-radius:7px;padding:5px 0;color:#8A94A6;font-size:12px;font-family:'IBM Plex Mono',monospace">combustible.grupoindi.mx/autorizaciones</div>
+      </div>
+      <div style="display:flex">
+        <!-- sidebar app identity -->
+        <div style="width:210px;background:#0A1E44;color:#fff;padding:20px 16px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+            <img src="assets/indi-logo.jpg" alt="" style="width:34px;height:34px;border-radius:9px" />
+            <div><div style="font-weight:800;font-size:14px;line-height:1">INDI</div><div style="font-size:11px;opacity:.7;font-weight:600">Combustible</div></div>
+          </div>
+          <div style="background:#0165F9;border-radius:10px;padding:11px 13px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:9px">🔔 Autorizaciones</div>
+          <div style="padding:11px 13px;font-size:13.5px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:9px">📋 Concentrado</div>
+          <div style="padding:11px 13px;font-size:13.5px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:9px">💲 Finanzas</div>
+          <div style="padding:11px 13px;font-size:13.5px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:9px">🚚 Vehículos</div>
+          <div style="padding:11px 13px;font-size:13.5px;font-weight:600;opacity:.8;display:flex;align-items:center;gap:9px">👥 Choferes</div>
+          <div style="margin-top:auto;padding:11px 13px;font-size:12.5px;opacity:.6;font-weight:600">Ing. Ulises Martínez</div>
+        </div>
+
+        <div style="flex:1;padding:22px 24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px">
+            <div style="font-size:19px;font-weight:800">Solicitudes para mañana · Jue 29 May</div>
+            <div style="font-size:12.5px;color:#64708A;font-weight:700">3 pendientes</div>
+          </div>
+
+          <div style="border:1.5px solid #0165F9;border-radius:16px;padding:18px 18px 20px;margin-bottom:14px;box-shadow:0 10px 24px -16px rgba(1,101,249,.5)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:42px;height:42px;border-radius:12px;background:#EAF1FF;color:#0165F9;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px">GH</div>
+                <div><div style="font-weight:800;font-size:16px">Germán Hernández</div><div style="font-size:12.5px;color:#64708A;font-family:'IBM Plex Mono',monospace">Nissan NP300 · LLE-146-A · Magna</div></div>
+              </div>
+              <div style="background:#FEF3E0;color:#C77C0A;font-size:11.5px;font-weight:800;padding:5px 12px;border-radius:20px">PENDIENTE</div>
+            </div>
+
+            <div style="display:flex;gap:14px;margin-bottom:16px">
+              <div style="flex:1;background:#F4F6FA;border-radius:12px;padding:12px 14px"><div style="font-size:11.5px;color:#8A94A6;font-weight:800">SOLICITADO</div><div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:22px;margin-top:2px">40 L</div></div>
+              <div style="flex:1;background:#F4F6FA;border-radius:12px;padding:12px 14px"><div style="font-size:11.5px;color:#8A94A6;font-weight:800">TOPE VEHÍCULO</div><div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:22px;margin-top:2px">60 L</div></div>
+              <div style="flex:1;background:#F4F6FA;border-radius:12px;padding:12px 14px"><div style="font-size:11.5px;color:#8A94A6;font-weight:800">PRESUP. SEMANA</div><div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:22px;margin-top:2px;color:#0E9F6E">$298k</div></div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="font-size:12.5px;font-weight:800;color:#8A94A6">AUTORIZAR</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:24px;color:#0165F9">{{ appL }} L</div>
+            </div>
+            <input type="range" min="0" max="60" step="5" value="{{ appL }}" onChange="{{ setApp }}" onInput="{{ setApp }}" style="width:100%;margin:8px 0 4px;accent-color:#0165F9" />
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#8A94A6;font-family:'IBM Plex Mono',monospace"><span>0 L</span><span>tope 60 L</span></div>
+
+            <sc-if value="{{ appLess }}" hint-placeholder-val="{{ true }}">
+              <div style="background:#FEECF0;border:1px solid #F5B8C6;border-radius:12px;padding:12px 14px;margin-top:14px">
+                <div style="font-size:11px;font-weight:800;letter-spacing:.4px;color:#E11D48;margin-bottom:6px">⚠ COMENTARIO OBLIGATORIO — autorizas menos de lo solicitado</div>
+                <div style="background:#fff;border:1px solid #F5B8C6;border-radius:8px;padding:11px 12px;font-size:14px;color:#9AA4B4">Escribe el motivo del ajuste…</div>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button style="flex:1;background:#0165F9;color:#fff;border:none;border-radius:12px;padding:14px;font-family:Manrope;font-weight:800;font-size:15px;cursor:pointer">Autorizar {{ appL }} L</button>
+              <button style="background:#fff;color:#E11D48;border:1.5px solid #F5B8C6;border-radius:12px;padding:14px 20px;font-family:Manrope;font-weight:800;font-size:15px;cursor:pointer">Rechazar</button>
+            </div>
+          </div>
+
+          <div style="border:1px solid #E4E9F2;border-radius:14px;padding:15px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:12px;background:#F4F6FA;color:#64708A;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px">MM</div>
+              <div><div style="font-weight:800;font-size:15px">Miguel Morales</div><div style="font-size:12.5px;color:#64708A;font-family:'IBM Plex Mono',monospace">Nissan NP300 · PK-4823-C · Magna</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:17px">38 L</span><span style="font-size:22px;color:#B4BECE">›</span></div>
+          </div>
+          <div style="border:1px solid #E4E9F2;border-radius:14px;padding:15px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:42px;height:42px;border-radius:12px;background:#F4F6FA;color:#64708A;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px">RZ</div>
+              <div><div style="font-weight:800;font-size:15px">Raúl Zárate</div><div style="font-size:12.5px;color:#64708A;font-family:'IBM Plex Mono',monospace">Marimba p/maquinaria · CV-4156-H · Diésel</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:17px">350 L</span><span style="font-size:22px;color:#B4BECE">›</span></div>
+          </div>
+        </div>
+
+        <div style="width:270px;background:#F4F6FA;border-left:1px solid #E4E9F2;padding:22px">
+          <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#8A94A6;margin-bottom:14px">REGLAS ACTIVAS</div>
+          <div style="background:#fff;border:1px solid #E4E9F2;border-radius:12px;padding:13px 14px;margin-bottom:11px">
+            <div style="font-weight:800;font-size:13.5px;margin-bottom:3px">Tope por vehículo</div>
+            <div style="font-size:12.5px;color:#64708A;line-height:1.4">No autorizar arriba del tope de la unidad.</div>
+          </div>
+          <div style="background:#fff;border:1px solid #E4E9F2;border-radius:12px;padding:13px 14px;margin-bottom:11px">
+            <div style="font-weight:800;font-size:13.5px;margin-bottom:3px">Comentario obligatorio</div>
+            <div style="font-size:12.5px;color:#64708A;line-height:1.4">Si das menos de lo solicitado, se pide el motivo.</div>
+          </div>
+          <div style="background:#fff;border:1px solid #E4E9F2;border-radius:12px;padding:13px 14px;margin-bottom:18px">
+            <div style="font-weight:800;font-size:13.5px;margin-bottom:3px">Límite semanal $</div>
+            <div style="font-size:12.5px;color:#64708A;line-height:1.4">Bloquea si se rebasa el presupuesto.</div>
+          </div>
+          <div style="font-size:12px;font-weight:800;letter-spacing:1px;color:#8A94A6;margin-bottom:10px">SEMANA 22</div>
+          <div style="background:linear-gradient(150deg,#0165F9,#0a3fb0);border-radius:14px;padding:16px;color:#fff">
+            <div style="font-size:11.5px;opacity:.85;font-weight:600">Presupuesto restante</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:22px;margin-top:3px">$298,002.85</div>
+            <div style="height:7px;background:rgba(255,255,255,.25);border-radius:4px;margin-top:10px;overflow:hidden"><div style="width:70%;height:100%;background:#fff"></div></div>
+            <div style="font-size:11.5px;opacity:.85;margin-top:6px;font-family:'IBM Plex Mono',monospace">70% ejercido de $1,000,000</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BROWSER: CONCENTRADO DE CARGAS -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:18px">
+    <div style="font-size:13px;font-weight:700;color:#0A1E44">Concentrado de cargas · se llena solo con cada comprobación · con km/L y alertas</div>
+    <div style="width:1120px;max-width:100%;background:#fff;border:1px solid #D3DAE6;border-radius:16px;overflow:hidden;box-shadow:0 24px 50px -28px rgba(10,30,68,.45)">
+      <div style="background:#0E1526;display:flex;align-items:center;gap:8px;padding:12px 16px">
+        <span style="width:11px;height:11px;border-radius:50%;background:#FF5F57"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#FEBC2E"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#28C840"></span>
+        <div style="flex:1;text-align:center;background:#232C40;border-radius:7px;padding:5px 0;color:#8A94A6;font-size:12px;font-family:'IBM Plex Mono',monospace">combustible.grupoindi.mx/concentrado</div>
+      </div>
+      <div style="padding:22px 24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:12px"><img src="assets/indi-logo.jpg" alt="" style="width:34px;height:34px;border-radius:9px" /><div><div style="font-size:19px;font-weight:800">Concentrado de cargas de combustible</div><div style="font-size:13px;color:#64708A;font-weight:600;margin-top:1px">Semana 22 · 25 al 31 de mayo de 2026</div></div></div>
+          <div style="display:flex;gap:10px">
+            <div style="background:#F4F6FA;border:1px solid #E4E9F2;border-radius:10px;padding:9px 15px;font-size:12.5px;font-weight:800;color:#64708A">Exportar Excel</div>
+            <div style="background:#EAF1FF;border:1px solid #C9DCFF;border-radius:10px;padding:9px 15px;font-size:12.5px;font-weight:800;color:#0165F9">Filtros</div>
+          </div>
+        </div>
+        <div style="border:1px solid #E4E9F2;border-radius:12px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead>
+              <tr style="background:#0A1E44;color:#fff;text-align:left;font-size:11px;letter-spacing:.3px">
+                <th style="padding:11px 12px;font-weight:700">FECHA</th>
+                <th style="padding:11px 12px;font-weight:700">RESPONSABLE</th>
+                <th style="padding:11px 12px;font-weight:700">VEHÍCULO</th>
+                <th style="padding:11px 12px;font-weight:700">PLACAS</th>
+                <th style="padding:11px 12px;font-weight:700;text-align:right">KM</th>
+                <th style="padding:11px 12px;font-weight:700;text-align:right">LITROS</th>
+                <th style="padding:11px 12px;font-weight:700;text-align:right">KM/L</th>
+                <th style="padding:11px 12px;font-weight:700;text-align:right">$/L</th>
+                <th style="padding:11px 12px;font-weight:700">COMB.</th>
+                <th style="padding:11px 12px;font-weight:700;text-align:right">IMPORTE</th>
+                <th style="padding:11px 12px;font-weight:700">TICKET</th>
+              </tr>
+            </thead>
+            <tbody style="font-family:'IBM Plex Mono',monospace">
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Germán Hernández</td><td style="padding:10px 12px">Nissan NP300</td><td style="padding:10px 12px">LLE-146-A</td><td style="padding:10px 12px;text-align:right">320</td><td style="padding:10px 12px;text-align:right">50.867</td><td style="padding:10px 12px;text-align:right;color:#0E9F6E;font-weight:600">6.3</td><td style="padding:10px 12px;text-align:right">23.99</td><td style="padding:10px 12px;font-family:Manrope">Magna</td><td style="padding:10px 12px;text-align:right;font-weight:600">$1,220.30</td><td style="padding:10px 12px;color:#0165F9">✓</td></tr>
+              <tr style="border-top:1px solid #EEF1F6;background:#FEECF0"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Miguel Morales</td><td style="padding:10px 12px">Nissan NP300</td><td style="padding:10px 12px">PK-4823-C</td><td style="padding:10px 12px;text-align:right">61</td><td style="padding:10px 12px;text-align:right">38.352</td><td style="padding:10px 12px;text-align:right;color:#E11D48;font-weight:700">1.6 ⚠</td><td style="padding:10px 12px;text-align:right">23.99</td><td style="padding:10px 12px;font-family:Manrope">Magna</td><td style="padding:10px 12px;text-align:right;font-weight:600">$920.06</td><td style="padding:10px 12px;color:#0165F9">✓</td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Yadhira León</td><td style="padding:10px 12px">Toyota Hilux</td><td style="padding:10px 12px">RJ-2683-B</td><td style="padding:10px 12px;text-align:right">356</td><td style="padding:10px 12px;text-align:right">40.000</td><td style="padding:10px 12px;text-align:right;color:#0E9F6E;font-weight:600">8.9</td><td style="padding:10px 12px;text-align:right">23.99</td><td style="padding:10px 12px;font-family:Manrope">Magna</td><td style="padding:10px 12px;text-align:right;font-weight:600">$959.60</td><td style="padding:10px 12px;color:#0165F9">✓</td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Cristian Cruz</td><td style="padding:10px 12px">Mitsubishi L200</td><td style="padding:10px 12px">MYB-412-A</td><td style="padding:10px 12px;text-align:right">311</td><td style="padding:10px 12px;text-align:right">38.847</td><td style="padding:10px 12px;text-align:right;color:#0E9F6E;font-weight:600">8.0</td><td style="padding:10px 12px;text-align:right">23.99</td><td style="padding:10px 12px;font-family:Manrope">Magna</td><td style="padding:10px 12px;text-align:right;font-weight:600">$931.94</td><td style="padding:10px 12px;color:#0165F9">✓</td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Antonio Ponce</td><td style="padding:10px 12px">Nissan NP300</td><td style="padding:10px 12px">MJJ-483-A</td><td style="padding:10px 12px;text-align:right">240</td><td style="padding:10px 12px;text-align:right">30.450</td><td style="padding:10px 12px;text-align:right;color:#0E9F6E;font-weight:600">7.9</td><td style="padding:10px 12px;text-align:right">23.99</td><td style="padding:10px 12px;font-family:Manrope">Magna</td><td style="padding:10px 12px;text-align:right;font-weight:600">$730.50</td><td style="padding:10px 12px;color:#0165F9">✓</td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Raúl Zárate</td><td style="padding:10px 12px">Marimba p/maq.</td><td style="padding:10px 12px">CV-4156-H</td><td style="padding:10px 12px;text-align:right;color:#8A94A6">—</td><td style="padding:10px 12px;text-align:right">350.001</td><td style="padding:10px 12px;text-align:right;color:#8A94A6">n/a</td><td style="padding:10px 12px;text-align:right">28.00</td><td style="padding:10px 12px;font-family:Manrope">Diésel</td><td style="padding:10px 12px;text-align:right;font-weight:600">$9,800.03</td><td style="padding:10px 12px;color:#0165F9">✓</td></tr>
+              <tr style="border-top:1px solid #EEF1F6;background:#FEF3E0"><td style="padding:10px 12px">25/05</td><td style="padding:10px 12px;font-family:Manrope;font-weight:600">Magdiel Aguilar</td><td style="padding:10px 12px">Equipo menor</td><td style="padding:10px 12px;color:#8A94A6">—</td><td style="padding:10px 12px;text-align:right;color:#8A94A6">—</td><td style="padding:10px 12px;text-align:right">15.000</td><td style="padding:10px 12px;text-align:right;color:#8A94A6">n/a</td><td style="padding:10px 12px;text-align:right">23.99</td><td style="padding:10px 12px;font-family:Manrope">Magna</td><td style="padding:10px 12px;text-align:right;font-weight:600">$359.85</td><td style="padding:10px 12px;color:#C77C0A">pend.</td></tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:#EAF1FF;font-family:'IBM Plex Mono',monospace;font-weight:700"><td style="padding:12px" colspan="5">TOTALES · Semana 22</td><td style="padding:12px;text-align:right">563.5 L</td><td style="padding:12px"></td><td style="padding:12px"></td><td style="padding:12px"></td><td style="padding:12px;text-align:right;color:#0165F9">$14,922.28</td><td style="padding:12px"></td></tr>
+            </tfoot>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:12.5px;color:#64708A">
+          <span style="width:13px;height:13px;border-radius:3px;background:#FEECF0;border:1px solid #F5B8C6;display:inline-block"></span> Rendimiento anómalo (alerta)
+          <span style="width:13px;height:13px;border-radius:3px;background:#FEF3E0;border:1px solid #F5D9A8;display:inline-block;margin-left:14px"></span> Ticket pendiente de subir
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BROWSER: RESUMEN FINANCIERO -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:18px">
+    <div style="font-size:13px;font-weight:700;color:#0A1E44">Resumen financiero · solicitado, consumo, depósito y saldo por semana</div>
+    <div style="width:1120px;max-width:100%;background:#fff;border:1px solid #D3DAE6;border-radius:16px;overflow:hidden;box-shadow:0 24px 50px -28px rgba(10,30,68,.45)">
+      <div style="background:#0E1526;display:flex;align-items:center;gap:8px;padding:12px 16px">
+        <span style="width:11px;height:11px;border-radius:50%;background:#FF5F57"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#FEBC2E"></span>
+        <span style="width:11px;height:11px;border-radius:50%;background:#28C840"></span>
+        <div style="flex:1;text-align:center;background:#232C40;border-radius:7px;padding:5px 0;color:#8A94A6;font-size:12px;font-family:'IBM Plex Mono',monospace">combustible.grupoindi.mx/finanzas</div>
+      </div>
+      <div style="padding:22px 24px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+          <div style="display:flex;align-items:center;gap:12px"><img src="assets/indi-logo.jpg" alt="" style="width:34px;height:34px;border-radius:9px" /><div><div style="font-size:19px;font-weight:800">José Pérez González</div><div style="font-size:13px;color:#64708A;font-weight:600;margin-top:1px">11 mayo — 31 diciembre 2026 · Suministro de combustible</div></div></div>
+          <div style="display:flex;gap:12px">
+            <div style="background:linear-gradient(150deg,#0165F9,#0a3fb0);border-radius:14px;padding:13px 18px;color:#fff;min-width:180px">
+              <div style="font-size:11.5px;opacity:.85;font-weight:600">TOTAL DEPOSITADO</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:20px;margin-top:3px">$4,600,000.00</div>
+            </div>
+            <div style="background:#0A1E44;border-radius:14px;padding:13px 18px;color:#fff;min-width:180px">
+              <div style="font-size:11.5px;opacity:.7;font-weight:600">SALDO DISPONIBLE</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:20px;margin-top:3px">$2,368,944.54</div>
+            </div>
+          </div>
+        </div>
+        <div style="border:1px solid #E4E9F2;border-radius:12px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead>
+              <tr style="background:#0A1E44;color:#fff;text-align:left;font-size:11px;letter-spacing:.3px">
+                <th style="padding:11px 14px;font-weight:700">SEMANA</th>
+                <th style="padding:11px 14px;font-weight:700">PERIODO</th>
+                <th style="padding:11px 14px;font-weight:700;text-align:right">SOLICITADO</th>
+                <th style="padding:11px 14px;font-weight:700;text-align:right">CONSUMO</th>
+                <th style="padding:11px 14px;font-weight:700;text-align:right">DEPÓSITO</th>
+                <th style="padding:11px 14px;font-weight:700;text-align:right">SALDO A FAVOR</th>
+                <th style="padding:11px 14px;font-weight:700">ESTATUS</th>
+              </tr>
+            </thead>
+            <tbody style="font-family:'IBM Plex Mono',monospace">
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 20</td><td style="padding:11px 14px">11–17 may</td><td style="padding:11px 14px;text-align:right">$700,000.00</td><td style="padding:11px 14px;text-align:right;color:#8A94A6">—</td><td style="padding:11px 14px;text-align:right">$200,000.00</td><td style="padding:11px 14px;text-align:right">$200,000.00</td><td style="padding:11px 14px"><span style="background:#E7F6F0;color:#0E9F6E;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">PAGADO</span></td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 21</td><td style="padding:11px 14px">18–24 may</td><td style="padding:11px 14px;text-align:right">$1,000,000.00</td><td style="padding:11px 14px;text-align:right;color:#8A94A6">—</td><td style="padding:11px 14px;text-align:right">$500,000.00</td><td style="padding:11px 14px;text-align:right">$700,000.00</td><td style="padding:11px 14px"><span style="background:#E7F6F0;color:#0E9F6E;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">PAGADO</span></td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 22</td><td style="padding:11px 14px">25–31 may</td><td style="padding:11px 14px;text-align:right">$1,000,000.00</td><td style="padding:11px 14px;text-align:right">$401,997.15</td><td style="padding:11px 14px;text-align:right;color:#8A94A6">—</td><td style="padding:11px 14px;text-align:right">$298,002.85</td><td style="padding:11px 14px"><span style="background:#E7F6F0;color:#0E9F6E;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">PAGADO</span></td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 23</td><td style="padding:11px 14px">1–7 jun</td><td style="padding:11px 14px;text-align:right">$1,000,000.00</td><td style="padding:11px 14px;text-align:right">$585,505.02</td><td style="padding:11px 14px;text-align:right">$1,000,000.00</td><td style="padding:11px 14px;text-align:right">$712,497.83</td><td style="padding:11px 14px"><span style="background:#E7F6F0;color:#0E9F6E;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">PAGADO</span></td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 24</td><td style="padding:11px 14px">8–14 jun</td><td style="padding:11px 14px;text-align:right">$2,000,000.00</td><td style="padding:11px 14px;text-align:right">$669,993.13</td><td style="padding:11px 14px;text-align:right">$2,000,000.00</td><td style="padding:11px 14px;text-align:right">$2,042,504.70</td><td style="padding:11px 14px"><span style="background:#E7F6F0;color:#0E9F6E;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">PAGADO</span></td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 25</td><td style="padding:11px 14px">15–21 jun</td><td style="padding:11px 14px;text-align:right">$1,000,000.00</td><td style="padding:11px 14px;text-align:right">$573,560.16</td><td style="padding:11px 14px;text-align:right">$900,000.00</td><td style="padding:11px 14px;text-align:right">$2,368,944.54</td><td style="padding:11px 14px"><span style="background:#E7F6F0;color:#0E9F6E;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">PAGADO</span></td></tr>
+              <tr style="border-top:1px solid #EEF1F6"><td style="padding:11px 14px;font-family:Manrope;font-weight:600">Semana 26</td><td style="padding:11px 14px">22–28 jun</td><td style="padding:11px 14px;text-align:right">$2,000,000.00</td><td style="padding:11px 14px;text-align:right;color:#8A94A6">—</td><td style="padding:11px 14px;text-align:right;color:#8A94A6">—</td><td style="padding:11px 14px;text-align:right">$2,368,944.54</td><td style="padding:11px 14px"><span style="background:#FEF9C3;color:#A16207;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:Manrope">SOLICITADO</span></td></tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:#EAF1FF;font-family:'IBM Plex Mono',monospace;font-weight:700"><td style="padding:12px 14px" colspan="3">TOTALES</td><td style="padding:12px 14px;text-align:right;color:#0165F9">$2,231,055.46</td><td style="padding:12px 14px;text-align:right;color:#0165F9">$4,600,000.00</td><td style="padding:12px 14px"></td><td style="padding:12px 14px"></td></tr>
+            </tfoot>
+          </table>
+        </div>
+        <div style="display:flex;gap:60px;margin-top:22px;font-size:12.5px;color:#64708A">
+          <div><div style="font-weight:800;color:#0E1526">Elaboró</div>Martha Marisol Martínez Vargas</div>
+          <div><div style="font-weight:800;color:#0E1526">Revisó</div>Ing. Ulises Abimael Martínez Cambero</div>
+          <div><div style="font-weight:800;color:#0E1526">Autorizó</div>Ing. Carlos Alberto Camacho Magdaleno</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { reqL: 40, appL: 35, loadL: 50.867, loadKm: 320 };
+  fmt(n, d = 2) {
+    return n.toLocaleString('es-MX', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  renderVals() {
+    const COST = 23.99;
+    const REQ_MAX = 60;
+    const REQUESTED_FOR_AUTH = 40;
+
+    const reqL = this.state.reqL;
+    const appL = this.state.appL;
+    const loadL = this.state.loadL;
+    const loadKm = this.state.loadKm;
+
+    const kmLnum = loadKm / loadL;
+    const anom = kmLnum < 3 || kmLnum > 15;
+
+    let badge, badgeStyle;
+    const base = 'font-family:Manrope;font-weight:800;font-size:12.5px;padding:6px 13px;border-radius:20px;';
+    if (anom) { badge = '⚠ Revisar'; badgeStyle = base + 'background:#FEECF0;color:#E11D48'; }
+    else if (kmLnum < 6) { badge = 'Bajo'; badgeStyle = base + 'background:#FEF3E0;color:#C77C0A'; }
+    else { badge = 'Normal'; badgeStyle = base + 'background:#E7F6F0;color:#0E9F6E'; }
+
+    return {
+      reqL,
+      reqMax: REQ_MAX,
+      reqImporte: '$' + this.fmt(reqL * COST),
+      incReq: () => this.setState(s => ({ reqL: Math.min(REQ_MAX, s.reqL + 5) })),
+      decReq: () => this.setState(s => ({ reqL: Math.max(5, s.reqL - 5) })),
+      appL,
+      appLess: appL < REQUESTED_FOR_AUTH,
+      setApp: e => this.setState({ appL: Number(e.target.value) }),
+      loadL: this.fmt(loadL, 3),
+      loadKm: loadKm.toLocaleString('es-MX'),
+      loadImporte: '$' + this.fmt(loadL * COST),
+      kmL: this.fmt(kmLnum, 1),
+      kmLBadge: badge,
+      kmLBadgeStyle: badgeStyle,
+      incLoad: () => this.setState(s => ({ loadL: Number((s.loadL + 0.5).toFixed(3)) })),
+      decLoad: () => this.setState(s => ({ loadL: Math.max(1, Number((s.loadL - 0.5).toFixed(3))) })),
+      incKm: () => this.setState(s => ({ loadKm: s.loadKm + 10 })),
+      decKm: () => this.setState(s => ({ loadKm: Math.max(0, s.loadKm - 10) })),
+    };
+  }
+}
+</script>
+</body>
+</html>
