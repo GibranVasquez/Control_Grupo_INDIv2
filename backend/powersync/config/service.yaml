@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json
+#
+# Config del servicio PowerSync self-hosted. `!env NOMBRE` sustituye el valor
+# de la variable de entorno NOMBRE (solo variables que empiecen con `PS_`
+# pueden sustituirse así). Ver ../docker-compose.yml para de dónde vienen.
+
+telemetry:
+  disable_telemetry_sharing: true
+
+# Base de datos de negocio (gi_control_combustible) como fuente de
+# replicación lógica. powersync_role es de solo lectura + replicación
+# (ver ../sql/prepare-source-db.sql).
+replication:
+  connections:
+    - type: postgresql
+      uri: !env PS_DATA_SOURCE_URI
+      sslmode: disable
+
+# Almacenamiento interno de PowerSync (buckets de sincronización), en su
+# propio Postgres (contenedor pg-storage), separado del esquema de negocio.
+storage:
+  type: postgresql
+  uri: !env PS_STORAGE_SOURCE_URI
+  sslmode: disable
+
+port: !env PS_PORT
+
+sync_config:
+  path: sync-config.yaml
+
+# Autenticación: PowerSync valida el MISMO JWT que ya emite el backend propio
+# (mismo secreto HS256 que JWT_SECRET, ver ../../.env), en vez de tener un
+# login/JWKS aparte. Ver ../POWERSYNC.md para el detalle de cómo se deriva
+# PS_JWT_SECRET_B64URL.
+client_auth:
+  jwks:
+    keys:
+      - kty: oct
+        alg: HS256
+        kid: !env PS_JWT_KID
+        k: !env PS_JWT_SECRET_B64URL
+  audience: ["gi-control-combustible-powersync"]
+
+api:
+  tokens:
+    # Token de administración de la API local de PowerSync (no confundir con
+    # los JWT de usuario). Cámbialo si expones este servicio más allá de tu
+    # máquina.
+    - dev-only-cambiar-en-produccion

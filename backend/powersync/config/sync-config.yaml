@@ -1,0 +1,74 @@
+# Sync rules de PowerSync para gi_control_combustible.
+#
+# Los nombres de tabla/columna son los reales de Postgres (snake_case, ver
+# backend/prisma/schema.prisma con sus @map/@@map) porque PowerSync lee
+# directo del WAL, no a través de Prisma.
+#
+# request.user_id() devuelve el claim `sub` del JWT, que el backend firma
+# como el id del perfil (perfiles.id) — ver backend/src/services/auth.service.ts.
+# El rol y la obra se resuelven consultando la tabla `perfiles` en cada
+# Parameter Query (no confiando en los claims `rol`/`obraId` del JWT, que
+# pueden quedar desactualizados hasta 1 día, que es JWT_EXPIRES_IN). Así, un
+# cambio de rol u obra en la base de datos se refleja de inmediato, incluso
+# con un token viejo.
+
+bucket_definitions:
+  # chofer: sus propias solicitudes y cargas.
+  chofer_propio:
+    parameters: |
+      SELECT id as chofer_id FROM perfiles
+      WHERE perfiles.id = request.user_id()
+        AND perfiles.rol = 'chofer'
+    data:
+      - SELECT * FROM solicitudes_autorizacion WHERE chofer_id = bucket.chofer_id
+      - SELECT * FROM cargas WHERE chofer_id = bucket.chofer_id
+
+  # chofer: el vehículo asignado y el catálogo (solo lectura) de vehículos y
+  # obra de su propia obra. No se distingue "el vehículo asignado" del resto
+  # del catálogo porque ambos quedan cubiertos por el filtro de obra.
+  chofer_obra_catalogo:
+    parameters: |
+      SELECT obra_id FROM perfiles
+      WHERE perfiles.id = request.user_id()
+        AND perfiles.rol = 'chofer'
+    data:
+      - SELECT * FROM vehiculos WHERE obra_id = bucket.obra_id
+      - SELECT * FROM obras WHERE id = bucket.obra_id
+
+  # administrativo: todo lo de su obra (solicitudes, cargas, vehículos,
+  # perfiles), más el registro de su propia obra.
+  administrativo_obra:
+    parameters: |
+      SELECT obra_id FROM perfiles
+      WHERE perfiles.id = request.user_id()
+        AND perfiles.rol = 'administrativo'
+    data:
+      - SELECT * FROM solicitudes_autorizacion WHERE obra_id = bucket.obra_id
+      - SELECT * FROM cargas WHERE obra_id = bucket.obra_id
+      - SELECT * FROM vehiculos WHERE obra_id = bucket.obra_id
+      - SELECT * FROM perfiles WHERE obra_id = bucket.obra_id
+      - SELECT * FROM obras WHERE id = bucket.obra_id
+
+  # finanzas: todo, sin restricción de obra. El Parameter Query no selecciona
+  # columnas: solo existe para exigir perfiles.rol = 'finanzas' (si no hay
+  # match, este bucket no se sincroniza para ese usuario). Al no producir
+  # parámetros, las Data Queries pueden ser globales sin filtrar por bucket.*.
+  finanzas_global:
+    parameters: |
+      SELECT FROM perfiles
+      WHERE perfiles.id = request.user_id()
+        AND perfiles.rol = 'finanzas'
+    data:
+      - SELECT * FROM solicitudes_autorizacion
+      - SELECT * FROM cargas
+      - SELECT * FROM vehiculos
+      - SELECT * FROM perfiles
+      - SELECT * FROM obras
+
+  # precios_combustible es un catálogo global (la tabla no tiene obra_id: un
+  # mismo precio vigente aplica a todas las obras), de solo lectura para los
+  # tres roles. Bucket global (sin Parameter Query): se sincroniza a
+  # cualquier cliente autenticado, sin importar su rol.
+  precios_combustible_catalogo:
+    data:
+      - SELECT * FROM precios_combustible
