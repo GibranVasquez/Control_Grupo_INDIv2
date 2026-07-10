@@ -44,11 +44,15 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   );
 });
 
+/// Mismo criterio que apiClientProvider: si el conector detecta que el JWT ya
+/// venció (ver ApiPowerSyncConnector.fetchCredentials), se limpia la sesión
+/// en memoria de la misma forma, para que app_router.dart regrese a /login.
 final powerSyncClientProvider = Provider<PowerSyncClient>((ref) {
   return PowerSyncClient(
     database: ref.watch(powerSyncDatabaseProvider),
     tokenStorage: ref.watch(tokenStorageProvider),
     apiClient: ref.watch(apiClientProvider),
+    onUnauthorized: () => ref.read(sesionProvider.notifier).cerrarSesion(),
   );
 });
 

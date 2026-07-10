@@ -31,26 +31,71 @@ Future<PowerSyncDatabase> abrirBaseDeDatosPowerSync() async {
   return base;
 }
 
+/// Margen de seguridad antes de la expiración real del JWT: si a un token le
+/// queda menos que esto (o ya expiró), se trata igual que si ya hubiera
+/// vencido — no tiene sentido ofrecérselo a PowerSync para una conexión que
+/// de todos modos va a quedar sin servir datos casi de inmediato.
+const _margenExpiracionToken = Duration(seconds: 10);
+
 /// Conector que traduce entre PowerSync (SQLite local) y nuestra API REST.
 ///
 /// - [fetchCredentials]: PowerSync no tiene login propio; reutiliza el mismo
 ///   JWT que ya emitió `POST /auth/login` (ver [TokenStorage]) sin pedir una
-///   autenticación aparte (backend/powersync/POWERSYNC.md, sección 2).
+///   autenticación aparte (backend/powersync/POWERSYNC.md, sección 2). Antes
+///   de entregar el token, se revisa su propio claim `exp`: si ya venció (o
+///   está a punto de hacerlo), se limpia la sesión y se notifica a
+///   [onUnauthorized] — igual que ante un 401 de la API REST (ver
+///   api_client.dart) — en vez de dejar que PowerSync siga "conectado" sin
+///   avisar a nadie.
+///
+///   Esto NO se basa en leer `token_expires_in` del cuerpo de
+///   `/sync/stream`: ese campo es parte del protocolo interno entre el
+///   servicio de PowerSync y su cliente de sync nativo, y no se expone a
+///   través de la API pública de `PowerSyncBackendConnector` (los únicos
+///   hooks disponibles son `fetchCredentials`/`uploadData`). Además, un JWT
+///   bien formado pero vencido no produce un 401 en `/sync/stream` — el
+///   servicio responde 200 con `{"token_expires_in": 0}` y sin datos (ver
+///   backend/PRUEBAS.md, prueba 4). Por eso la detección se hace aquí,
+///   decodificando el propio `exp` del JWT con
+///   `PowerSyncCredentials.getExpiryDate` (utilidad que ya trae el paquete
+///   `powersync` para este propósito) antes de ofrecérselo al SDK.
 /// - [uploadData]: traduce cada entrada de la cola de escritura local a la
 ///   llamada REST equivalente. Solo `solicitudes_autorizacion` (insertar,
 ///   resolver) y `cargas` (insertar) generan escrituras locales; el resto de
 ///   las tablas del esquema son catálogos de solo lectura (ver
 ///   powersync_schema.dart) y nunca deberían aparecer aquí.
 class ApiPowerSyncConnector extends PowerSyncBackendConnector {
-  ApiPowerSyncConnector({required this.tokenStorage, required this.apiClient});
+  ApiPowerSyncConnector({
+    required this.tokenStorage,
+    required this.apiClient,
+    this.onUnauthorized,
+  });
 
   final TokenStorage tokenStorage;
   final ApiClient apiClient;
+
+  /// Mismo callback que [OnUnauthorized] en api_client.dart: quien arme este
+  /// conector (ver [PowerSyncClient]/providers.dart) decide qué hacer,
+  /// normalmente limpiar la sesión en memoria para que app_router.dart
+  /// redirija a /login. No hay todavía un flujo de refresh de JWT en el
+  /// backend (JWT_EXPIRES_IN es fijo, ver auth.service.ts): mientras no
+  /// exista, este es el único camino disponible ante un token vencido.
+  final OnUnauthorized? onUnauthorized;
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
     final token = await tokenStorage.leer();
     if (token == null) return null;
+
+    final expiraEn = PowerSyncCredentials.getExpiryDate(token);
+    final estaPorVencerOVencido =
+        expiraEn != null && !expiraEn.isAfter(DateTime.now().add(_margenExpiracionToken));
+    if (estaPorVencerOVencido) {
+      await tokenStorage.limpiar();
+      onUnauthorized?.call();
+      return null;
+    }
+
     return PowerSyncCredentials(endpoint: powerSyncUrl, token: token);
   }
 
@@ -145,7 +190,12 @@ class PowerSyncClient {
     required this.database,
     required TokenStorage tokenStorage,
     required ApiClient apiClient,
-  }) : _connector = ApiPowerSyncConnector(tokenStorage: tokenStorage, apiClient: apiClient);
+    OnUnauthorized? onUnauthorized,
+  }) : _connector = ApiPowerSyncConnector(
+          tokenStorage: tokenStorage,
+          apiClient: apiClient,
+          onUnauthorized: onUnauthorized,
+        );
 
   final PowerSyncDatabase database;
   final ApiPowerSyncConnector _connector;
