@@ -6,10 +6,6 @@ import 'providers.dart';
 import 'session_provider.dart';
 import 'usuarios_registrados_provider.dart';
 
-/// Convención de correo para Supabase Auth a partir del número de empleado.
-/// Pendiente de confirmar con backend en Fase 0 (podría ser SSO/OIDC en su lugar).
-String _correoDesdeNumeroEmpleado(String numeroEmpleado) => '$numeroEmpleado@indi.internal';
-
 class AuthController extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncValue.data(null);
@@ -21,7 +17,7 @@ class AuthController extends Notifier<AsyncValue<void>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       // Primero se busca contra las altas hechas en register_page.dart (en memoria, sin backend).
-      // Si hay match, entra sin tocar Supabase; si no, se intenta el login real contra Supabase Auth.
+      // Si hay match, entra sin tocar la API real; si no, se intenta el login real contra el backend.
       final usuarioDemo = ref
           .read(usuariosRegistradosProvider.notifier)
           .buscarPorCredenciales(numeroEmpleado, password);
@@ -31,14 +27,15 @@ class AuthController extends Notifier<AsyncValue<void>> {
         return;
       }
 
-      final client = ref.read(supabaseClientProvider);
-      await client.auth.signInWithPassword(
-        email: _correoDesdeNumeroEmpleado(numeroEmpleado),
-        password: password,
-      );
-      final perfil = await ref.read(perfilRepositoryProvider).obtenerPerfilActual();
+      final perfil = await ref
+          .read(perfilRepositoryProvider)
+          .iniciarSesion(numeroEmpleado: numeroEmpleado, password: password);
       ref.read(usuarioActualDemoProvider.notifier).establecer(null);
       ref.read(sesionProvider.notifier).iniciarSesion(perfil);
+      // El JWT ya quedó guardado en TokenStorage dentro de iniciarSesion() de
+      // ApiPerfilRepository; PowerSync reutiliza ese mismo token al conectar
+      // (ver services/powersync/powersync_client.dart), sin login aparte.
+      await ref.read(powerSyncClientProvider).conectar();
       await ref
           .read(credencialesStorageProvider)
           .guardar(usuario: numeroEmpleado, password: password);
@@ -81,7 +78,11 @@ class AuthController extends Notifier<AsyncValue<void>> {
       ref.read(sesionProvider.notifier).cerrarSesion();
       return;
     }
-    await ref.read(supabaseClientProvider).auth.signOut();
+    // Corta el stream de PowerSync y borra los datos sincronizados del disco
+    // antes de limpiar el JWT: no dejar solicitudes/cargas/catálogos de este
+    // perfil en un dispositivo que otro usuario podría usar después.
+    await ref.read(powerSyncClientProvider).desconectarYLimpiar();
+    await ref.read(tokenStorageProvider).limpiar();
     ref.read(sesionProvider.notifier).cerrarSesion();
   }
 }
