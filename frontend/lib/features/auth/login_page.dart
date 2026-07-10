@@ -374,12 +374,16 @@ class _BotonSso extends StatelessWidget {
             child: Image.asset('assets/images/indi_logo.jpg', width: 22, height: 22),
           ),
           const SizedBox(width: 10),
-          const Text(
-            'Acceso corporativo INDI',
-            style: TextStyle(
-              color: AppColors.navy,
-              fontWeight: FontWeight.w800,
-              fontSize: 15.5,
+          const Flexible(
+            child: Text(
+              'Acceso corporativo INDI',
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                color: AppColors.navy,
+                fontWeight: FontWeight.w800,
+                fontSize: 15.5,
+              ),
             ),
           ),
         ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dev/datos_demo.dart';
+import '../../state/session_provider.dart';
 import '../../widgets/widgets.dart';
 import '../reportes/resumen_financiero_page.dart';
 import 'bandeja_autorizaciones_page.dart';
@@ -8,14 +10,14 @@ import 'choferes_page.dart';
 import 'concentrado_cargas_page.dart';
 import 'vehiculos_page.dart';
 
-class AdministrativoHomePage extends StatefulWidget {
+class AdministrativoHomePage extends ConsumerStatefulWidget {
   const AdministrativoHomePage({super.key});
 
   @override
-  State<AdministrativoHomePage> createState() => _AdministrativoHomePageState();
+  ConsumerState<AdministrativoHomePage> createState() => _AdministrativoHomePageState();
 }
 
-class _AdministrativoHomePageState extends State<AdministrativoHomePage> {
+class _AdministrativoHomePageState extends ConsumerState<AdministrativoHomePage> {
   int _seleccion = 0;
 
   static const _items = [
@@ -28,11 +30,12 @@ class _AdministrativoHomePageState extends State<AdministrativoHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final perfil = ref.watch(sesionProvider);
     return AdminShell(
       items: _items,
       indiceSeleccionado: _seleccion,
       onSeleccionar: (i) => setState(() => _seleccion = i),
-      nombreUsuario: 'Ing. Paola Reyes',
+      nombreUsuario: perfil?.nombreCompleto ?? '',
       child: switch (_seleccion) {
         0 => const BandejaAutorizacionesPage(),
         1 => const ConcentradoCargasPage(),

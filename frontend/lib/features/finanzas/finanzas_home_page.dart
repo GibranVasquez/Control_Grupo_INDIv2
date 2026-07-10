@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dev/datos_demo.dart';
+import '../../state/session_provider.dart';
 import '../../widgets/widgets.dart';
 import '../reportes/resumen_financiero_page.dart';
 import 'cierre_semanal_page.dart';
 import 'precios_combustible_page.dart';
 import 'usuarios_page.dart';
 
-class FinanzasHomePage extends StatefulWidget {
+class FinanzasHomePage extends ConsumerStatefulWidget {
   const FinanzasHomePage({super.key});
 
   @override
-  State<FinanzasHomePage> createState() => _FinanzasHomePageState();
+  ConsumerState<FinanzasHomePage> createState() => _FinanzasHomePageState();
 }
 
-class _FinanzasHomePageState extends State<FinanzasHomePage> {
+class _FinanzasHomePageState extends ConsumerState<FinanzasHomePage> {
   int _seleccion = 0;
 
   static const _items = [
@@ -26,11 +28,12 @@ class _FinanzasHomePageState extends State<FinanzasHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final perfil = ref.watch(sesionProvider);
     return AdminShell(
       items: _items,
       indiceSeleccionado: _seleccion,
       onSeleccionar: (i) => setState(() => _seleccion = i),
-      nombreUsuario: 'Lic. Fernando Aguilar',
+      nombreUsuario: perfil?.nombreCompleto ?? '',
       child: switch (_seleccion) {
         0 => ResumenFinancieroPage(
             filas: DatosDemo.resumenFinancieroObra,
