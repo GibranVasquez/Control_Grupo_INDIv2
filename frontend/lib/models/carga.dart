@@ -10,9 +10,12 @@ class Carga {
     required this.litros,
     required this.precioPorLitro,
     required this.montoTotal,
-    required this.kmActual,
+    this.kmActual,
     this.kmAnterior,
     this.rendimientoKmL,
+    this.horasActual,
+    this.horasAnterior,
+    this.rendimientoLH,
     this.alertaRendimiento,
     this.fotoTicketUrl,
     required this.fechaCarga,
@@ -28,11 +31,25 @@ class Carga {
   final double litros;
   final double precioPorLitro;
   final double montoTotal;
-  final int kmActual;
+
+  /// Nulo cuando la unidad es maquinaria pesada y no usa kilometraje (usa [horasActual]).
+  final int? kmActual;
   final int? kmAnterior;
 
   /// Calculado por el backend a partir de km recorridos / litros cargados.
+  /// Solo aplica a vehículos con kilometraje; nulo para maquinaria pesada.
   final double? rendimientoKmL;
+
+  /// Horómetro actual de la unidad. Solo aplica a maquinaria pesada; nulo para vehículos.
+  final int? horasActual;
+
+  /// Horómetro registrado en la carga previa. Solo aplica a maquinaria pesada.
+  final int? horasAnterior;
+
+  /// Rendimiento calculado por el backend en litros por hora (L/h) a partir de
+  /// horas transcurridas / litros cargados. Solo aplica a maquinaria pesada.
+  final double? rendimientoLH;
+
   final AlertaRendimiento? alertaRendimiento;
 
   /// Nulo mientras la foto sigue solo en el dispositivo, sin subir todavía.
@@ -50,9 +67,12 @@ class Carga {
         litros: (json['litros'] as num).toDouble(),
         precioPorLitro: (json['precio_por_litro'] as num).toDouble(),
         montoTotal: (json['monto_total'] as num).toDouble(),
-        kmActual: json['km_actual'] as int,
+        kmActual: json['km_actual'] as int?,
         kmAnterior: json['km_anterior'] as int?,
         rendimientoKmL: (json['rendimiento_km_l'] as num?)?.toDouble(),
+        horasActual: json['horas_actual'] as int?,
+        horasAnterior: json['horas_anterior'] as int?,
+        rendimientoLH: (json['rendimiento_l_h'] as num?)?.toDouble(),
         alertaRendimiento: json['alerta_rendimiento'] == null
             ? null
             : AlertaRendimiento.fromDb(json['alerta_rendimiento'] as String),
@@ -76,6 +96,9 @@ class Carga {
         'km_actual': kmActual,
         'km_anterior': kmAnterior,
         'rendimiento_km_l': rendimientoKmL,
+        'horas_actual': horasActual,
+        'horas_anterior': horasAnterior,
+        'rendimiento_l_h': rendimientoLH,
         'alerta_rendimiento': alertaRendimiento?.toDb(),
         'foto_ticket_url': fotoTicketUrl,
         'fecha_carga': fechaCarga.toIso8601String(),
