@@ -18,6 +18,14 @@ export function esFechaISOValida(valor: unknown): valor is string {
   return typeof valor === "string" && !Number.isNaN(Date.parse(valor));
 }
 
+const REGEX_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Acepta cualquier UUID RFC 4122 (v1-v5); es lo que genera el paquete `uuid`
+ * usado del lado del cliente (PowerSync/Flutter) al insertar offline. */
+export function esUuidValido(valor: unknown): valor is string {
+  return typeof valor === "string" && REGEX_UUID.test(valor);
+}
+
 export function valorDeQuery(valor: unknown): string | undefined {
   return typeof valor === "string" && valor.length > 0 ? valor : undefined;
 }

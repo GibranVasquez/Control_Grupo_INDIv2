@@ -60,17 +60,17 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
     if (lote == null) return;
 
     for (final entrada in lote.crud) {
-      await _subirEntrada(database, entrada);
+      await _subirEntrada(entrada);
     }
     await lote.complete();
   }
 
-  Future<void> _subirEntrada(PowerSyncDatabase database, CrudEntry entrada) {
+  Future<void> _subirEntrada(CrudEntry entrada) {
     switch (entrada.table) {
       case 'solicitudes_autorizacion':
-        return _subirSolicitud(database, entrada);
+        return _subirSolicitud(entrada);
       case 'cargas':
-        return _subirCarga(database, entrada);
+        return _subirCarga(entrada);
       default:
         // vehiculos/obras/perfiles/precios_combustible son catálogos de solo
         // lectura para el cliente (ver powersync_schema.dart): ningún
@@ -81,25 +81,19 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
     }
   }
 
-  /// El backend genera su propio `id` al crear una solicitud/carga (no
-  /// acepta uno del cliente — ver backend/src/services/solicitudAutorizacion.service.ts
-  /// y carga.service.ts), así que el id generado localmente al insertar
-  /// offline (ver PowerSyncSolicitudAutorizacionRepository/PowerSyncCargaRepository)
-  /// nunca coincidirá con el id real que asigna Postgres.
-  ///
-  /// Para no dejar un duplicado permanente en la tabla local, se borra la
-  /// fila optimista apenas el POST tiene éxito; la fila real llega poco
-  /// después por el flujo normal de descarga de PowerSync, ya con su id
-  /// definitivo. Esto deja una ventana breve (entre el borrado local y la
-  /// siguiente descarga) en la que el registro recién creado desaparece de
-  /// la UI. Se resuelve de raíz solo si el backend acepta un `id` opcional
-  /// en el body de esos dos endpoints y lo usa al crear — pendiente,
-  /// señalado en el resumen de esta migración.
-  Future<void> _subirSolicitud(PowerSyncDatabase database, CrudEntry entrada) async {
+  /// El id que genera PowerSyncSolicitudAutorizacionRepository/
+  /// PowerSyncCargaRepository al insertar offline (uuid v4) se manda tal
+  /// cual en el body como `id`; el backend (solicitudAutorizacion.service.ts
+  /// / carga.service.ts) lo valida y lo usa como id real en vez de generar
+  /// uno nuevo. La fila local y la fila del servidor son entonces siempre el
+  /// mismo registro — ya no hace falta borrar la fila optimista ni esperar a
+  /// que la real llegue por sync (como antes de que el backend aceptara id).
+  Future<void> _subirSolicitud(CrudEntry entrada) async {
     switch (entrada.op) {
       case UpdateType.put:
         final datos = entrada.opData ?? const <String, dynamic>{};
         await apiClient.dio.post('/solicitudes-autorizacion', data: {
+          'id': entrada.id,
           'vehiculo_id': datos['vehiculo_id'],
           'litros_solicitados': datos['litros_solicitados'],
           if (datos['comentario'] != null) 'comentario': datos['comentario'],
@@ -107,10 +101,6 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
           if (datos['responsable'] != null) 'responsable': datos['responsable'],
           'creado_offline': datos['creado_offline'] == 1,
         });
-        await database.execute(
-          'DELETE FROM solicitudes_autorizacion WHERE id = ?',
-          [entrada.id],
-        );
         return;
       case UpdateType.patch:
         // Único update que la app dispara sobre esta tabla: resolver().
@@ -122,19 +112,17 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
         });
         return;
       case UpdateType.delete:
-        // Solo llega aquí por el borrado de reconciliación de arriba; nunca
-        // por acción del usuario (no existe un "eliminar solicitud" en la UI).
+        // La UI nunca borra solicitudes; no hay ningún flujo que genere esto.
         return;
     }
   }
 
-  Future<void> _subirCarga(PowerSyncDatabase database, CrudEntry entrada) async {
-    // El delete que llega aquí es siempre el de reconciliación descrito
-    // arriba (la UI nunca borra ni edita una carga ya creada).
-    if (entrada.op != UpdateType.put) return;
+  Future<void> _subirCarga(CrudEntry entrada) async {
+    if (entrada.op != UpdateType.put) return; // la UI nunca edita/borra una carga ya creada.
 
     final datos = entrada.opData ?? const <String, dynamic>{};
     await apiClient.dio.post('/cargas', data: {
+      'id': entrada.id,
       'solicitud_id': datos['solicitud_id'],
       'vehiculo_id': datos['vehiculo_id'],
       'litros': datos['litros'],
@@ -145,7 +133,6 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
       if (datos['horas_anterior'] != null) 'horas_anterior': datos['horas_anterior'],
       'creado_offline': datos['creado_offline'] == 1,
     });
-    await database.execute('DELETE FROM cargas WHERE id = ?', [entrada.id]);
   }
 }
 

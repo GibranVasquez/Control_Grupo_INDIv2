@@ -1,9 +1,14 @@
-import { SolicitudAutorizacion } from "@prisma/client";
+import { Prisma, SolicitudAutorizacion } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { asegurarAccesoObra } from "../utils/accesoObra";
 import { numeroDesdeDecimal } from "../utils/decimal";
-import { esNumeroNoNegativo, esNumeroPositivo, esStringNoVacia } from "../utils/validacion";
+import {
+  esNumeroNoNegativo,
+  esNumeroPositivo,
+  esStringNoVacia,
+  esUuidValido,
+} from "../utils/validacion";
 import { AuthTokenPayload } from "../types/auth";
 
 const ESTADOS_RESOLUCION = ["autorizado", "rechazado"] as const;
@@ -45,6 +50,7 @@ function serializar(s: SolicitudAutorizacion): SolicitudAutorizacionPublica {
 }
 
 export interface DatosCrearSolicitud {
+  id?: unknown;
   vehiculo_id: unknown;
   litros_solicitados: unknown;
   comentario?: unknown;
@@ -57,6 +63,23 @@ export async function crear(
   user: AuthTokenPayload,
   datos: DatosCrearSolicitud
 ): Promise<SolicitudAutorizacionPublica> {
+  // id opcional: lo manda el cliente cuando la solicitud se creó offline
+  // (PowerSync/uuid del lado de Flutter, ver frontend/lib/services/powersync/).
+  // Usarlo tal cual evita que el registro optimista local y el real terminen
+  // con ids distintos — si no se manda, se sigue generando uno nuevo (default
+  // de Prisma/Postgres, ver schema.prisma).
+  let id: string | undefined;
+  if (datos.id !== undefined && datos.id !== null) {
+    if (!esUuidValido(datos.id)) {
+      throw new AppError(400, "id debe ser un UUID válido.");
+    }
+    const existente = await prisma.solicitudAutorizacion.findUnique({ where: { id: datos.id } });
+    if (existente) {
+      throw new AppError(409, "Ya existe una solicitud de autorización con ese id.");
+    }
+    id = datos.id;
+  }
+
   if (!esStringNoVacia(datos.vehiculo_id, 100)) {
     throw new AppError(400, "vehiculo_id es requerido y debe ser un texto válido.");
   }
@@ -91,21 +114,35 @@ export async function crear(
   // El chofer solo puede pedir combustible para un vehículo de su propia obra.
   asegurarAccesoObra(user, vehiculo.obraId);
 
-  const solicitud = await prisma.solicitudAutorizacion.create({
-    data: {
-      // chofer_id y obra_id nunca se toman del body: siempre del token,
-      // aunque el cliente mande otro valor.
-      choferId: user.perfilId,
-      obraId: user.obraId,
-      vehiculoId: datos.vehiculo_id,
-      litrosSolicitados: datos.litros_solicitados,
-      comentario: (datos.comentario as string | undefined) ?? null,
-      actividad: (datos.actividad as string | undefined) ?? null,
-      responsable: (datos.responsable as string | undefined) ?? null,
-      creadoOffline: (datos.creado_offline as boolean | undefined) ?? false,
-      estado: "pendiente",
-    },
-  });
+  let solicitud: SolicitudAutorizacion;
+  try {
+    solicitud = await prisma.solicitudAutorizacion.create({
+      data: {
+        // id: si vino del cliente ya se validó arriba que no exista; si es
+        // undefined, Prisma usa el default (uuid_generate_v4(), ver schema.prisma).
+        id,
+        // chofer_id y obra_id nunca se toman del body: siempre del token,
+        // aunque el cliente mande otro valor.
+        choferId: user.perfilId,
+        obraId: user.obraId,
+        vehiculoId: datos.vehiculo_id,
+        litrosSolicitados: datos.litros_solicitados,
+        comentario: (datos.comentario as string | undefined) ?? null,
+        actividad: (datos.actividad as string | undefined) ?? null,
+        responsable: (datos.responsable as string | undefined) ?? null,
+        creadoOffline: (datos.creado_offline as boolean | undefined) ?? false,
+        estado: "pendiente",
+      },
+    });
+  } catch (error) {
+    // Red de seguridad ante la carrera entre el findUnique de arriba y este
+    // create (dos requests concurrentes con el mismo id offline): el check
+    // previo cubre el caso común (secuencial), esto cubre el concurrente.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError(409, "Ya existe una solicitud de autorización con ese id.");
+    }
+    throw error;
+  }
   return serializar(solicitud);
 }
 

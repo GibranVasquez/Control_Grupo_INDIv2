@@ -1,9 +1,15 @@
-import { AlertaRendimientoTipo, Carga } from "@prisma/client";
+import { AlertaRendimientoTipo, Carga, Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { asegurarAccesoObra } from "../utils/accesoObra";
 import { enteroDesdeDecimal, numeroDesdeDecimal } from "../utils/decimal";
-import { esFechaISOValida, esNumeroNoNegativo, esNumeroPositivo, esStringNoVacia } from "../utils/validacion";
+import {
+  esFechaISOValida,
+  esNumeroNoNegativo,
+  esNumeroPositivo,
+  esStringNoVacia,
+  esUuidValido,
+} from "../utils/validacion";
 import { AuthTokenPayload } from "../types/auth";
 
 export interface CargaPublica {
@@ -63,6 +69,7 @@ function calcularAlerta(rendimientoKmL: number): AlertaRendimientoTipo {
 }
 
 export interface DatosCrearCarga {
+  id?: unknown;
   solicitud_id: unknown;
   vehiculo_id: unknown;
   litros: unknown;
@@ -76,6 +83,23 @@ export interface DatosCrearCarga {
 }
 
 export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Promise<CargaPublica> {
+  // id opcional: lo manda el cliente cuando la carga se registró offline
+  // (PowerSync/uuid del lado de Flutter, ver frontend/lib/services/powersync/).
+  // Usarlo tal cual evita que el registro optimista local y el real terminen
+  // con ids distintos — si no se manda, se sigue generando uno nuevo (default
+  // de Prisma/Postgres, ver schema.prisma).
+  let id: string | undefined;
+  if (datos.id !== undefined && datos.id !== null) {
+    if (!esUuidValido(datos.id)) {
+      throw new AppError(400, "id debe ser un UUID válido.");
+    }
+    const existente = await prisma.carga.findUnique({ where: { id: datos.id } });
+    if (existente) {
+      throw new AppError(409, "Ya existe una carga con ese id.");
+    }
+    id = datos.id;
+  }
+
   if (!esStringNoVacia(datos.solicitud_id, 100)) {
     throw new AppError(400, "solicitud_id es requerido y debe ser un texto válido.");
   }
@@ -178,32 +202,46 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
         : null;
   }
 
-  const [carga] = await prisma.$transaction([
-    prisma.carga.create({
-      data: {
-        solicitudId: solicitud.id,
-        // chofer_id y obra_id nunca se toman del body: siempre del token/solicitud.
-        choferId: user.perfilId,
-        vehiculoId: datos.vehiculo_id,
-        obraId: solicitud.obraId,
-        litros: datos.litros,
-        precioPorLitro: datos.precio_por_litro,
-        kmActual,
-        kmAnterior,
-        rendimientoKmL,
-        horasActual,
-        horasAnterior,
-        rendimientoLH,
-        alertaRendimiento,
-        fechaCarga: datos.fecha_carga ? new Date(datos.fecha_carga as string) : new Date(),
-        creadoOffline: (datos.creado_offline as boolean | undefined) ?? false,
-      },
-    }),
-    prisma.solicitudAutorizacion.update({
-      where: { id: solicitud.id },
-      data: { estado: "cargado" },
-    }),
-  ]);
+  let carga: Carga;
+  try {
+    [carga] = await prisma.$transaction([
+      prisma.carga.create({
+        data: {
+          // id: si vino del cliente ya se validó arriba que no exista; si es
+          // undefined, Prisma usa el default (uuid_generate_v4(), ver schema.prisma).
+          id,
+          solicitudId: solicitud.id,
+          // chofer_id y obra_id nunca se toman del body: siempre del token/solicitud.
+          choferId: user.perfilId,
+          vehiculoId: datos.vehiculo_id,
+          obraId: solicitud.obraId,
+          litros: datos.litros,
+          precioPorLitro: datos.precio_por_litro,
+          kmActual,
+          kmAnterior,
+          rendimientoKmL,
+          horasActual,
+          horasAnterior,
+          rendimientoLH,
+          alertaRendimiento,
+          fechaCarga: datos.fecha_carga ? new Date(datos.fecha_carga as string) : new Date(),
+          creadoOffline: (datos.creado_offline as boolean | undefined) ?? false,
+        },
+      }),
+      prisma.solicitudAutorizacion.update({
+        where: { id: solicitud.id },
+        data: { estado: "cargado" },
+      }),
+    ]);
+  } catch (error) {
+    // Red de seguridad ante la carrera entre el findUnique de arriba y este
+    // create (dos requests concurrentes con el mismo id offline): el check
+    // previo cubre el caso común (secuencial), esto cubre el concurrente.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError(409, "Ya existe una carga con ese id.");
+    }
+    throw error;
+  }
 
   return serializar(carga);
 }

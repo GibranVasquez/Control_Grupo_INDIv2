@@ -21,8 +21,9 @@ import '../carga_repository.dart';
 ///   ticket guardada localmente").
 ///
 /// [crear] siempre genera su propio id (uuid v4), ignorando cualquier valor
-/// en `carga.id` — mismo criterio y misma advertencia sobre reconciliación
-/// de ids que en powersync_solicitud_autorizacion_repository.dart.
+/// en `carga.id`; ese mismo id se manda al backend al subir el cambio (ver
+/// powersync_client.dart) y `carga.service.ts` lo usa como id real — mismo
+/// criterio que powersync_solicitud_autorizacion_repository.dart.
 class PowerSyncCargaRepository implements CargaRepository {
   PowerSyncCargaRepository({required this.database, required this.apiClient});
 

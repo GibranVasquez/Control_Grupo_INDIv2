@@ -18,10 +18,11 @@ import '../solicitud_autorizacion_repository.dart';
 /// [crear] siempre genera su propio id (uuid v4) al insertar, ignorando
 /// cualquier valor que traiga `solicitud.id` (el objeto de entrada describe
 /// los datos a crear, no una fila ya existente — mismo criterio que
-/// `SolicitudAutorizacionRepositoryFake` original). Ese id no necesariamente
-/// coincidirá con el que Postgres asigne al recibir el POST: ver la nota
-/// larga en powersync_client.dart sobre el borrado de reconciliación que
-/// eso implica, y qué haría falta en el backend para evitarlo del todo.
+/// `SolicitudAutorizacionRepositoryFake` original). Ese mismo id se manda tal
+/// cual al backend al subir el cambio (ver powersync_client.dart), que lo
+/// valida y lo usa como id real (backend/src/services/solicitudAutorizacion.service.ts) —
+/// la fila local y la fila del servidor son siempre el mismo registro, sin
+/// duplicados ni ventana en la que desaparezca de la UI.
 class PowerSyncSolicitudAutorizacionRepository implements SolicitudAutorizacionRepository {
   PowerSyncSolicitudAutorizacionRepository({required this.database});
 
