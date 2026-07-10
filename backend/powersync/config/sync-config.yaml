@@ -37,6 +37,12 @@ bucket_definitions:
 
   # administrativo: todo lo de su obra (solicitudes, cargas, vehículos,
   # perfiles), más el registro de su propia obra.
+  #
+  # perfiles se selecciona por columna explícita, nunca con SELECT *: la
+  # tabla tiene password_hash (bcrypt) y no hay motivo para que ese hash
+  # viaje al dispositivo de un administrativo. Mantener esta lista en sync
+  # con lo que de verdad lee el frontend (ver frontend/lib/models/perfil.dart
+  # y powersync_schema.dart) — password_hash NUNCA debe agregarse aquí.
   administrativo_obra:
     parameters: |
       SELECT obra_id FROM perfiles
@@ -46,13 +52,17 @@ bucket_definitions:
       - SELECT * FROM solicitudes_autorizacion WHERE obra_id = bucket.obra_id
       - SELECT * FROM cargas WHERE obra_id = bucket.obra_id
       - SELECT * FROM vehiculos WHERE obra_id = bucket.obra_id
-      - SELECT * FROM perfiles WHERE obra_id = bucket.obra_id
+      - SELECT id, auth_user_id, numero_empleado, nombre_completo, rol, obra_id, vehiculo_id, area, activo
+        FROM perfiles WHERE obra_id = bucket.obra_id
       - SELECT * FROM obras WHERE id = bucket.obra_id
 
   # finanzas: todo, sin restricción de obra. El Parameter Query no selecciona
   # columnas: solo existe para exigir perfiles.rol = 'finanzas' (si no hay
   # match, este bucket no se sincroniza para ese usuario). Al no producir
   # parámetros, las Data Queries pueden ser globales sin filtrar por bucket.*.
+  #
+  # perfiles, igual que en administrativo_obra, se selecciona por columna
+  # explícita — nunca password_hash.
   finanzas_global:
     parameters: |
       SELECT FROM perfiles
@@ -62,7 +72,8 @@ bucket_definitions:
       - SELECT * FROM solicitudes_autorizacion
       - SELECT * FROM cargas
       - SELECT * FROM vehiculos
-      - SELECT * FROM perfiles
+      - SELECT id, auth_user_id, numero_empleado, nombre_completo, rol, obra_id, vehiculo_id, area, activo
+        FROM perfiles
       - SELECT * FROM obras
 
   # precios_combustible es un catálogo global (la tabla no tiene obra_id: un
