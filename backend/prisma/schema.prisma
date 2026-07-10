@@ -1,0 +1,419 @@
+// Generado a partir de migracion_grupo_indi.sql — respeta nombres y tipos
+// reales de la base de datos. Campos en camelCase mapeados a las columnas
+// snake_case originales via @map()/@@map().
+//
+// "views" habilita los `view` blocks de solo lectura (sección 9 del SQL).
+// Prisma Migrate no gestiona vistas ni la función resumen_financiero_por_periodo();
+// ambas siguen viviendo en migraciones SQL crudas. La función se invoca desde
+// el backend con $queryRaw.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------
+// 1. ENUMS
+// ---------------------------------------------------------------------
+
+enum RolUsuario {
+  chofer
+  administrativo
+  finanzas
+
+  @@map("rol_usuario")
+}
+
+enum EstadoObra {
+  activa
+  pausada
+  cerrada
+
+  @@map("estado_obra")
+}
+
+enum EstadoVehiculo {
+  activo
+  taller
+  baja
+
+  @@map("estado_vehiculo")
+}
+
+enum EstadoSolicitud {
+  pendiente
+  autorizado
+  rechazado
+  cargado
+
+  @@map("estado_solicitud")
+}
+
+enum AlertaRendimientoTipo {
+  bajo
+  normal
+  revisar
+
+  @@map("alerta_rendimiento_tipo")
+}
+
+enum EstadoSemana {
+  abierta
+  cerrada
+
+  @@map("estado_semana")
+}
+
+enum TipoCombustible {
+  magna
+  premium
+  diesel
+
+  @@map("tipo_combustible")
+}
+
+enum EstadoFondo {
+  solicitado
+  pagado
+
+  @@map("estado_fondo")
+}
+
+enum TipoUnidad {
+  vehiculo
+  maquinaria
+
+  @@map("tipo_unidad")
+}
+
+// ---------------------------------------------------------------------
+// 2. OBRAS
+// ---------------------------------------------------------------------
+
+model Obra {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  nombre      String
+  ubicacion   String?
+  estado      EstadoObra @default(activa)
+  fechaInicio DateTime   @default(now()) @map("fecha_inicio") @db.Date
+  fechaFin    DateTime?  @map("fecha_fin") @db.Date
+  creadoEn    DateTime   @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  perfiles                Perfil[]
+  vehiculos               Vehiculo[]
+  vehiculosHistorialObra  VehiculoHistorialObra[]
+  semanasOperativas       SemanaOperativa[]
+  fondoSemanal            FondoSemanal[]
+  solicitudesAutorizacion SolicitudAutorizacion[]
+  cargas                  Carga[]
+
+  @@map("obras")
+}
+
+// ---------------------------------------------------------------------
+// 3. PERFILES
+// ---------------------------------------------------------------------
+
+model Perfil {
+  id             String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  authUserId     String     @unique @default(dbgenerated("uuid_generate_v4()")) @map("auth_user_id") @db.Uuid
+  numeroEmpleado String     @unique @map("numero_empleado")
+  passwordHash   String     @map("password_hash")
+  nombreCompleto String     @map("nombre_completo")
+  rol            RolUsuario
+  obraId         String?    @map("obra_id") @db.Uuid
+  vehiculoId     String?    @map("vehiculo_id") @db.Uuid
+  area           String?
+  activo         Boolean    @default(true)
+  creadoEn       DateTime   @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  obra     Obra?     @relation(fields: [obraId], references: [id])
+  vehiculo Vehiculo? @relation(fields: [vehiculoId], references: [id])
+
+  precioscombustibleCreados PrecioCombustible[]
+  semanasOperativasCerradas SemanaOperativa[]
+  fondoSemanalElaborado     FondoSemanal[]          @relation("FondoSemanalElaboradoPor")
+  fondoSemanalRevisado      FondoSemanal[]          @relation("FondoSemanalRevisadoPor")
+  fondoSemanalAutorizado    FondoSemanal[]          @relation("FondoSemanalAutorizadoPor")
+  fondoSemanalCapturado     FondoSemanal[]          @relation("FondoSemanalCapturadoPor")
+  solicitudesComoChofer     SolicitudAutorizacion[] @relation("SolicitudChofer")
+  solicitudesResueltas      SolicitudAutorizacion[] @relation("SolicitudResueltaPor")
+  cargasComoChofer          Carga[]
+
+  @@index([obraId], map: "idx_perfiles_obra")
+  @@index([rol], map: "idx_perfiles_rol")
+  @@index([vehiculoId], map: "idx_perfiles_vehiculo")
+  @@map("perfiles")
+}
+
+// ---------------------------------------------------------------------
+// 4. VEHÍCULOS
+// ---------------------------------------------------------------------
+
+model Vehiculo {
+  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  placa             String          @unique
+  tipoUnidad        TipoUnidad      @default(vehiculo) @map("tipo_unidad")
+  marca             String
+  modelo            String
+  anio              Int?
+  tipoCombustible   TipoCombustible @default(diesel) @map("tipo_combustible")
+  topeLitrosSemanal Decimal         @default(0) @map("tope_litros_semanal") @db.Decimal(10, 2)
+  obraId            String          @map("obra_id") @db.Uuid
+  estado            EstadoVehiculo  @default(activo)
+  creadoEn          DateTime        @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  obra Obra @relation(fields: [obraId], references: [id])
+
+  perfilesAsignados       Perfil[]
+  historialObra           VehiculoHistorialObra[]
+  solicitudesAutorizacion SolicitudAutorizacion[]
+  cargas                  Carga[]
+
+  @@index([obraId], map: "idx_vehiculos_obra")
+  @@map("vehiculos")
+}
+
+model VehiculoHistorialObra {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  vehiculoId   String    @map("vehiculo_id") @db.Uuid
+  obraId       String    @map("obra_id") @db.Uuid
+  fechaInicio  DateTime  @default(now()) @map("fecha_inicio") @db.Timestamptz(6)
+  fechaFin     DateTime? @map("fecha_fin") @db.Timestamptz(6)
+
+  vehiculo Vehiculo @relation(fields: [vehiculoId], references: [id])
+  obra     Obra     @relation(fields: [obraId], references: [id])
+
+  @@index([vehiculoId], map: "idx_hist_vehiculo")
+  @@map("vehiculos_historial_obra")
+}
+
+// ---------------------------------------------------------------------
+// 5. PRECIOS DE COMBUSTIBLE
+// ---------------------------------------------------------------------
+
+model PrecioCombustible {
+  id              String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tipoCombustible TipoCombustible @map("tipo_combustible")
+  precioPorLitro  Decimal         @map("precio_por_litro") @db.Decimal(10, 2)
+  vigenteDesde    DateTime        @map("vigente_desde") @db.Date
+  vigenteHasta    DateTime?       @map("vigente_hasta") @db.Date
+  creadoPorId     String?         @map("creado_por") @db.Uuid
+  creadoEn        DateTime        @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  creadoPor Perfil? @relation(fields: [creadoPorId], references: [id])
+
+  @@index([tipoCombustible, vigenteDesde], map: "idx_precios_vigencia")
+  @@map("precios_combustible")
+}
+
+// ---------------------------------------------------------------------
+// 6. SEMANAS OPERATIVAS
+// ---------------------------------------------------------------------
+
+model SemanaOperativa {
+  id            String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  obraId        String       @map("obra_id") @db.Uuid
+  periodoInicio DateTime     @map("periodo_inicio") @db.Date
+  periodoFin    DateTime     @map("periodo_fin") @db.Date
+  estado        EstadoSemana @default(abierta)
+  cerradaPorId  String?      @map("cerrada_por") @db.Uuid
+  cerradaEn     DateTime?    @map("cerrada_en") @db.Timestamptz(6)
+
+  obra       Obra    @relation(fields: [obraId], references: [id])
+  cerradaPor Perfil? @relation(fields: [cerradaPorId], references: [id])
+
+  @@unique([obraId, periodoInicio])
+  @@map("semanas_operativas")
+}
+
+// ---------------------------------------------------------------------
+// 6.1 FONDO SEMANAL
+// ---------------------------------------------------------------------
+
+model FondoSemanal {
+  id                     String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  obraId                 String?     @map("obra_id") @db.Uuid
+  numeroSemana           Int         @map("numero_semana")
+  periodoInicio          DateTime    @map("periodo_inicio") @db.Date
+  periodoFin             DateTime    @map("periodo_fin") @db.Date
+  montoSolicitado        Decimal     @default(0) @map("monto_solicitado") @db.Decimal(12, 2)
+  montoDepositado        Decimal     @default(0) @map("monto_depositado") @db.Decimal(12, 2)
+  saldoAFavorAnterior    Decimal     @default(0) @map("saldo_a_favor_anterior") @db.Decimal(12, 2)
+  estatus                EstadoFondo @default(solicitado)
+  elaboradoPorId         String?     @map("elaborado_por") @db.Uuid
+  revisadoPorId          String?     @map("revisado_por") @db.Uuid
+  autorizadoPorId        String?     @map("autorizado_por") @db.Uuid
+  capturadoPorId         String?     @map("capturado_por") @db.Uuid
+  capturadoEn            DateTime    @default(now()) @map("capturado_en") @db.Timestamptz(6)
+
+  obra         Obra?   @relation(fields: [obraId], references: [id])
+  elaboradoPor Perfil? @relation("FondoSemanalElaboradoPor", fields: [elaboradoPorId], references: [id])
+  revisadoPor  Perfil? @relation("FondoSemanalRevisadoPor", fields: [revisadoPorId], references: [id])
+  autorizadoPor Perfil? @relation("FondoSemanalAutorizadoPor", fields: [autorizadoPorId], references: [id])
+  capturadoPor Perfil? @relation("FondoSemanalCapturadoPor", fields: [capturadoPorId], references: [id])
+
+  @@unique([obraId, periodoInicio])
+  @@map("fondo_semanal")
+}
+
+// ---------------------------------------------------------------------
+// 7. SOLICITUDES DE AUTORIZACIÓN
+// ---------------------------------------------------------------------
+
+model SolicitudAutorizacion {
+  id                 String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  choferId           String          @map("chofer_id") @db.Uuid
+  vehiculoId         String          @map("vehiculo_id") @db.Uuid
+  obraId             String          @map("obra_id") @db.Uuid
+  litrosSolicitados  Decimal         @map("litros_solicitados") @db.Decimal(10, 2)
+  litrosAutorizados  Decimal?        @map("litros_autorizados") @db.Decimal(10, 2)
+  comentario         String?
+  estado             EstadoSolicitud @default(pendiente)
+  resueltoPorId      String?         @map("resuelto_por") @db.Uuid
+  resueltoEn         DateTime?       @map("resuelto_en") @db.Timestamptz(6)
+  creadoEn           DateTime        @default(now()) @map("creado_en") @db.Timestamptz(6)
+  creadoOffline      Boolean         @default(false) @map("creado_offline")
+  actividad          String?
+  responsable        String?
+
+  chofer     Perfil   @relation("SolicitudChofer", fields: [choferId], references: [id])
+  vehiculo   Vehiculo @relation(fields: [vehiculoId], references: [id])
+  obra       Obra     @relation(fields: [obraId], references: [id])
+  resueltoPor Perfil? @relation("SolicitudResueltaPor", fields: [resueltoPorId], references: [id])
+
+  cargas Carga[]
+
+  @@index([obraId, estado], map: "idx_solicitudes_obra")
+  @@index([choferId], map: "idx_solicitudes_chofer")
+  @@map("solicitudes_autorizacion")
+}
+
+// ---------------------------------------------------------------------
+// 8. CARGAS
+// ---------------------------------------------------------------------
+
+model Carga {
+  id                 String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  solicitudId        String?                @map("solicitud_id") @db.Uuid
+  choferId           String                 @map("chofer_id") @db.Uuid
+  vehiculoId         String                 @map("vehiculo_id") @db.Uuid
+  obraId             String                 @map("obra_id") @db.Uuid
+  litros             Decimal                @db.Decimal(10, 2)
+  precioPorLitro     Decimal                @map("precio_por_litro") @db.Decimal(10, 2)
+  /// Columna generada por Postgres (`litros * precio_por_litro`, GENERATED ALWAYS AS ... STORED).
+  /// dbgenerated("") evita que Prisma Client intente escribirla en create/update.
+  montoTotal         Decimal                @default(dbgenerated()) @map("monto_total") @db.Decimal(10, 2)
+  kmActual           Decimal?               @map("km_actual") @db.Decimal(10, 1)
+  kmAnterior         Decimal?               @map("km_anterior") @db.Decimal(10, 1)
+  horasActual        Decimal?               @map("horas_actual") @db.Decimal(10, 1)
+  horasAnterior      Decimal?               @map("horas_anterior") @db.Decimal(10, 1)
+  rendimientoKmL     Decimal?               @map("rendimiento_km_l") @db.Decimal(10, 2)
+  rendimientoLH      Decimal?               @map("rendimiento_l_h") @db.Decimal(10, 2)
+  alertaRendimiento  AlertaRendimientoTipo?  @map("alerta_rendimiento")
+  fotoTicketUrl      String?                @map("foto_ticket_url")
+  fechaCarga         DateTime               @default(now()) @map("fecha_carga") @db.Timestamptz(6)
+  creadoOffline      Boolean                @default(false) @map("creado_offline")
+  sincronizadoEn     DateTime?              @map("sincronizado_en") @db.Timestamptz(6)
+
+  solicitud SolicitudAutorizacion? @relation(fields: [solicitudId], references: [id])
+  chofer    Perfil                 @relation(fields: [choferId], references: [id])
+  vehiculo  Vehiculo               @relation(fields: [vehiculoId], references: [id])
+  obra      Obra                   @relation(fields: [obraId], references: [id])
+
+  @@index([obraId, fechaCarga], map: "idx_cargas_obra_fecha")
+  @@index([vehiculoId, fechaCarga], map: "idx_cargas_vehiculo")
+  @@index([choferId], map: "idx_cargas_chofer")
+  @@map("cargas")
+}
+
+// ---------------------------------------------------------------------
+// 9. VISTAS DE REPORTES (solo lectura — no gestionadas por Prisma Migrate)
+// ---------------------------------------------------------------------
+
+view VistaConsumoSemanalPorObra {
+  obraId       String   @map("obra_id") @db.Uuid
+  semanaInicio DateTime @map("semana_inicio") @db.Date
+  consumoTotal Decimal? @map("consumo_total") @db.Decimal
+
+  @@unique([obraId, semanaInicio])
+  @@map("vista_consumo_semanal_por_obra")
+}
+
+view VistaConsumoSemanalGlobal {
+  semanaInicio DateTime @map("semana_inicio") @db.Date
+  consumoTotal Decimal? @map("consumo_total") @db.Decimal
+  totalCargas  BigInt   @map("total_cargas")
+
+  @@unique([semanaInicio])
+  @@map("vista_consumo_semanal_global")
+}
+
+view VistaResumenFinancieroSemanal {
+  semanaId      String   @map("semana_id") @db.Uuid
+  numeroSemana  Int      @map("numero_semana")
+  obraId        String   @map("obra_id") @db.Uuid
+  periodoInicio DateTime @map("periodo_inicio") @db.Date
+  periodoFin    DateTime @map("periodo_fin") @db.Date
+  solicitado    Decimal  @db.Decimal(12, 2)
+  consumo       Decimal  @db.Decimal
+  deposito      Decimal  @db.Decimal(12, 2)
+  saldoAFavor   Decimal  @map("saldo_a_favor") @db.Decimal
+  estatus       String
+
+  @@unique([semanaId])
+  @@map("vista_resumen_financiero_semanal")
+}
+
+view VistaResumenFinancieroConsolidado {
+  semanaId      String   @map("semana_id") @db.Uuid
+  numeroSemana  Int      @map("numero_semana")
+  periodoInicio DateTime @map("periodo_inicio") @db.Date
+  periodoFin    DateTime @map("periodo_fin") @db.Date
+  solicitado    Decimal  @db.Decimal(12, 2)
+  consumo       Decimal  @db.Decimal
+  deposito      Decimal  @db.Decimal(12, 2)
+  saldoAFavor   Decimal  @map("saldo_a_favor") @db.Decimal
+  estatus       String
+
+  @@unique([semanaId])
+  @@map("vista_resumen_financiero_consolidado")
+}
+
+view VistaConcentradoCargas {
+  id                String                 @db.Uuid
+  obra              String
+  chofer            String
+  vehiculo          String
+  placa             String
+  tipoUnidad        TipoUnidad             @map("tipo_unidad")
+  kmActual          Decimal?               @map("km_actual") @db.Decimal(10, 1)
+  horasActual       Decimal?               @map("horas_actual") @db.Decimal(10, 1)
+  litros            Decimal                @db.Decimal(10, 2)
+  rendimientoKmL    Decimal?               @map("rendimiento_km_l") @db.Decimal(10, 2)
+  rendimientoLH     Decimal?               @map("rendimiento_l_h") @db.Decimal(10, 2)
+  precioPorLitro    Decimal                @map("precio_por_litro") @db.Decimal(10, 2)
+  tipoCombustible   TipoCombustible        @map("tipo_combustible")
+  montoTotal        Decimal                @map("monto_total") @db.Decimal(10, 2)
+  alertaRendimiento AlertaRendimientoTipo? @map("alerta_rendimiento")
+  fechaCarga        DateTime               @map("fecha_carga") @db.Timestamptz(6)
+  fotoTicketUrl     String?                @map("foto_ticket_url")
+
+  @@unique([id])
+  @@map("vista_concentrado_cargas")
+}
+
+view VistaConsumoVehiculoSemanal {
+  vehiculoId        String   @map("vehiculo_id") @db.Uuid
+  placa             String
+  topeLitrosSemanal Decimal  @map("tope_litros_semanal") @db.Decimal(10, 2)
+  semanaInicio      DateTime @map("semana_inicio") @db.Date
+  litrosConsumidos  Decimal? @map("litros_consumidos") @db.Decimal
+
+  @@unique([vehiculoId, semanaInicio])
+  @@map("vista_consumo_vehiculo_semanal")
+}

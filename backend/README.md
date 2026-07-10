@@ -1,30 +1,64 @@
 # Backend — GI Control Combustible
 
-Este directorio es propiedad del equipo de backend. El frontend (`../frontend/`) solo lo consume vía `supabase_flutter` + PowerSync; no se modifica desde este repo del lado Flutter.
+API REST propia (Node.js + TypeScript + Express + Prisma). Este backend
+**reemplaza a Supabase por completo**: no hay RLS, no hay Edge Functions ni
+`auth.users` de este lado. La base de datos es PostgreSQL, administrada
+directamente vía Prisma (`prisma/schema.prisma` + migraciones).
 
-## Estructura esperada
+Para soporte offline-first se agrega PowerSync (self-hosted) como capa de
+sincronización sobre esta misma base de datos, reutilizando el JWT que ya
+emite este backend. Ver [`powersync/POWERSYNC.md`](./powersync/POWERSYNC.md).
+
+## Estructura
 
 ```
 backend/
-  supabase/
-    migrations/   # esquema SQL (tablas, RLS, vistas)
-    functions/    # Edge Functions (Deno)
+  package.json
+  tsconfig.json
+  .env.example
+  prisma/
+    schema.prisma
+    migrations/
+  src/
+    index.ts
+    routes/
+    controllers/
+    services/
+    middlewares/
+    utils/
 ```
 
 ## Contrato con el frontend
 
-El frontend asume las siguientes tablas y vistas (ver `frontend/lib/models/` para los campos exactos consumidos):
+El frontend (`../frontend/`) ya **no** consume esto vía `supabase_flutter`.
+El contrato es una API REST tradicional: JSON sobre HTTP, autenticada con
+JWT enviado en el header `Authorization: Bearer <token>`.
 
-- `perfiles`, `obras`, `vehiculos`
-- `solicitudes_autorizacion`, `cargas`
-- `precios_combustible`, `semanas_operativas`
-- Vistas: `vista_consumo_vehiculo_semanal`, `vista_concentrado_cargas`, `vista_resumen_financiero_semanal`
+Esto implica que la capa de acceso a datos del frontend debe reemplazarse:
+los repositorios en `frontend/lib/services/` (`perfil_repository.dart`,
+`obra_repository.dart`, `vehiculo_repository.dart`, `carga_repository.dart`,
+`solicitud_autorizacion_repository.dart`, `precio_combustible_repository.dart`,
+`semana_operativa_repository.dart`, `reportes_repository.dart`), incluyendo
+la carpeta `frontend/lib/services/supabase/`, deben pasar a llamar a esta API
+en vez de al cliente de Supabase. El login deja de usar `auth.users` de
+Supabase y pasa a autenticarse contra los endpoints de este backend,
+guardando el JWT emitido (ver `credenciales_storage.dart`).
 
-Cualquier cambio de nombre de columna/tabla o de tipo de dato debe reflejarse en `frontend/lib/models/` para no romper la serialización.
+Las entidades que el frontend necesita seguirán siendo, conceptualmente, las
+mismas que antes (perfiles, obras, vehículos, solicitudes de autorización,
+cargas, precios de combustible, semanas operativas, y los resúmenes/reportes
+agregados), pero ahora expuestas como endpoints REST propios en vez de tablas
+y vistas de Supabase. Los modelos en `frontend/lib/models/` deben mantenerse
+alineados con los shapes JSON que devuelva esta API.
 
-## Pendiente de Fase 0 (ver plan de trabajo del frontend)
+## Pendiente
 
-- Confirmar si la autorización es binaria o parcial (`litros_autorizados`).
-- Confirmar regla de disparo del comentario obligatorio (comparación contra `tope_litros_semanal` / `vista_consumo_vehiculo_semanal`).
-- Entregar al frontend: URL del proyecto Supabase + `anon key`, endpoint/credenciales de PowerSync.
-- Confirmar lectura de rol: `perfiles.rol` vía `auth_user_id = auth.uid()`.
+- Definir los modelos Prisma (`prisma/schema.prisma`) equivalentes a las
+  entidades de negocio y generar la primera migración.
+- Diseñar los endpoints REST (rutas, payloads, códigos de estado) que
+  reemplazan a las tablas/vistas antes servidas por Supabase.
+- Definir el flujo de autenticación (registro/login, emisión y expiración de
+  JWT, hashing de contraseñas) y el manejo de roles (antes `perfiles.rol`).
+- Coordinar con el frontend el reemplazo de los repositorios en
+  `frontend/lib/services/` y la eliminación de la dependencia
+  `supabase_flutter` una vez que la API esté lista.
