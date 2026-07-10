@@ -215,8 +215,14 @@ export async function resolver(
   }
   asegurarAccesoObra(user, solicitud.obraId);
 
+  // Camino rápido: si ya se ve resuelta en esta lectura, error inmediato sin
+  // validar el resto del body. No es suficiente por sí solo para evitar la
+  // doble resolución concurrente (dos administrativos resolviendo la misma
+  // solicitud al mismo tiempo pueden pasar ambos por este chequeo antes de
+  // que cualquiera escriba) — esa garantía la da el updateMany condicionado
+  // más abajo, que es atómico a nivel de fila en Postgres.
   if (solicitud.estado !== "pendiente") {
-    throw new AppError(400, "Esta solicitud ya fue resuelta.");
+    throw new AppError(409, "Esta solicitud ya fue resuelta.");
   }
 
   const comentario = (datos.comentario as string | undefined)?.trim();
@@ -243,8 +249,15 @@ export async function resolver(
     }
   }
 
-  const actualizada = await prisma.solicitudAutorizacion.update({
-    where: { id: solicitudId },
+  // updateMany (no update) porque la condición de la carrera va en el WHERE:
+  // Prisma no deja usar una columna no-única (estado) en el where de
+  // `update`. Postgres evalúa el WHERE y aplica el UPDATE de forma atómica
+  // por fila, así que si dos requests concurrentes llegan aquí para la misma
+  // solicitud, solo el primero en comprometerse encuentra estado='pendiente'
+  // y actualiza; el segundo hace match con 0 filas (ya no ve 'pendiente') y
+  // recibe un 409 en vez de un 200 falso.
+  const resultado = await prisma.solicitudAutorizacion.updateMany({
+    where: { id: solicitudId, estado: "pendiente" },
     data: {
       estado,
       litrosAutorizados: estado === "autorizado" ? litrosAutorizados : null,
@@ -252,6 +265,13 @@ export async function resolver(
       resueltoPorId: user.perfilId,
       resueltoEn: new Date(),
     },
+  });
+  if (resultado.count === 0) {
+    throw new AppError(409, "Esta solicitud ya fue resuelta.");
+  }
+
+  const actualizada = await prisma.solicitudAutorizacion.findUniqueOrThrow({
+    where: { id: solicitudId },
   });
   return serializar(actualizada);
 }

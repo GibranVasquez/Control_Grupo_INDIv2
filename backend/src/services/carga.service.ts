@@ -155,6 +155,15 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
     throw new AppError(400, "horas_actual debe ser mayor o igual a horas_anterior.");
   }
 
+  // Copias a variables locales tipadas: dentro del closure de $transaction
+  // más abajo, TypeScript no conserva el angostamiento de tipo de
+  // esStringNoVacia/esNumeroPositivo sobre propiedades de `datos` (no es una
+  // variable local), así que sin esto el compilador las vuelve a ver como
+  // `unknown`.
+  const vehiculoId = datos.vehiculo_id as string;
+  const litros = datos.litros as number;
+  const precioPorLitro = datos.precio_por_litro as number;
+
   const solicitud = await prisma.solicitudAutorizacion.findUnique({
     where: { id: datos.solicitud_id },
   });
@@ -204,8 +213,26 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
 
   let carga: Carga;
   try {
-    [carga] = await prisma.$transaction([
-      prisma.carga.create({
+    carga = await prisma.$transaction(async (tx) => {
+      // updateMany (no update) porque la condición de la carrera va en el
+      // WHERE: si dos requests concurrentes registran una carga contra la
+      // misma solicitud (mismo motivo que la doble resolución en
+      // solicitudAutorizacion.service.ts), solo el primero en comprometerse
+      // encuentra estado='autorizado' y la mueve a 'cargado'; el segundo
+      // hace match con 0 filas y aborta la transacción completa (no queda
+      // una carga huérfana sin su solicitud pasada a 'cargado').
+      const resultado = await tx.solicitudAutorizacion.updateMany({
+        where: { id: solicitud.id, estado: "autorizado" },
+        data: { estado: "cargado" },
+      });
+      if (resultado.count === 0) {
+        throw new AppError(
+          409,
+          "La solicitud ya no está autorizada (es probable que ya se haya registrado otra carga para ella)."
+        );
+      }
+
+      return tx.carga.create({
         data: {
           // id: si vino del cliente ya se validó arriba que no exista; si es
           // undefined, Prisma usa el default (uuid_generate_v4(), ver schema.prisma).
@@ -213,10 +240,10 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
           solicitudId: solicitud.id,
           // chofer_id y obra_id nunca se toman del body: siempre del token/solicitud.
           choferId: user.perfilId,
-          vehiculoId: datos.vehiculo_id,
+          vehiculoId,
           obraId: solicitud.obraId,
-          litros: datos.litros,
-          precioPorLitro: datos.precio_por_litro,
+          litros,
+          precioPorLitro,
           kmActual,
           kmAnterior,
           rendimientoKmL,
@@ -227,13 +254,12 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
           fechaCarga: datos.fecha_carga ? new Date(datos.fecha_carga as string) : new Date(),
           creadoOffline: (datos.creado_offline as boolean | undefined) ?? false,
         },
-      }),
-      prisma.solicitudAutorizacion.update({
-        where: { id: solicitud.id },
-        data: { estado: "cargado" },
-      }),
-    ]);
+      });
+    });
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     // Red de seguridad ante la carrera entre el findUnique de arriba y este
     // create (dos requests concurrentes con el mismo id offline): el check
     // previo cubre el caso común (secuencial), esto cubre el concurrente.
