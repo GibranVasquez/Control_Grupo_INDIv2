@@ -162,3 +162,70 @@ export async function consumoSemanalDeVehiculo(
     tope_litros_semanal: numeroDesdeDecimal(vehiculo.topeLitrosSemanal) ?? 0,
   };
 }
+
+export interface FilaFondoSemanal {
+  id: string;
+  obra_id: string | null;
+  numero_semana: number;
+  periodo_inicio: Date;
+  periodo_fin: Date;
+  monto_solicitado: number;
+  monto_depositado: number;
+  saldo_a_favor_anterior: number;
+  consumo: number;
+  saldo_a_favor: number;
+  estatus: string;
+}
+
+/**
+ * Expone `fondo_semanal` por obra (tabla real, capturada a mano por
+ * finanzas) — no la vista `vista_resumen_financiero_semanal`, que también
+ * existe pero está pensada para el histórico de semanas ya cerradas. Aquí se
+ * incluye la semana abierta actual, que es la que necesita
+ * bandeja_autorizaciones_page.dart para mostrar el presupuesto vigente.
+ *
+ * saldo_a_favor se calcula con la misma fórmula que las vistas de resumen
+ * financiero (ver migracion_grupo_indi.sql, sección 9):
+ *   monto_depositado + saldo_a_favor_anterior - consumo_real_de_la_semana
+ * El consumo real sale de `vista_consumo_semanal_por_obra` (suma de
+ * `cargas.monto_total` de esa obra en esa semana), no de monto_solicitado.
+ */
+export async function fondoSemanalPorObra(
+  user: AuthTokenPayload,
+  obraId: string
+): Promise<FilaFondoSemanal[]> {
+  asegurarAccesoObra(user, obraId);
+
+  const filas = await prisma.fondoSemanal.findMany({
+    where: { obraId },
+    orderBy: { periodoInicio: "desc" },
+  });
+
+  const consumos = await prisma.vistaConsumoSemanalPorObra.findMany({
+    where: { obraId },
+  });
+  const consumoPorSemana = new Map<string, number>(
+    consumos.map((c) => [c.semanaInicio.toISOString(), numeroDesdeDecimal(c.consumoTotal) ?? 0])
+  );
+
+  return filas.map((f) => {
+    const montoSolicitado = numeroDesdeDecimal(f.montoSolicitado) ?? 0;
+    const montoDepositado = numeroDesdeDecimal(f.montoDepositado) ?? 0;
+    const saldoAFavorAnterior = numeroDesdeDecimal(f.saldoAFavorAnterior) ?? 0;
+    const consumo = consumoPorSemana.get(f.periodoInicio.toISOString()) ?? 0;
+
+    return {
+      id: f.id,
+      obra_id: f.obraId,
+      numero_semana: f.numeroSemana,
+      periodo_inicio: f.periodoInicio,
+      periodo_fin: f.periodoFin,
+      monto_solicitado: montoSolicitado,
+      monto_depositado: montoDepositado,
+      saldo_a_favor_anterior: saldoAFavorAnterior,
+      consumo,
+      saldo_a_favor: montoDepositado + saldoAFavorAnterior - consumo,
+      estatus: f.estatus,
+    };
+  });
+}

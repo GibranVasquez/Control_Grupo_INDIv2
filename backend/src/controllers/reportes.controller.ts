@@ -38,3 +38,12 @@ export async function consumoSemanalDeVehiculo(req: Request, res: Response): Pro
   );
   res.json({ consumo: fila });
 }
+
+export async function fondoSemanalPorObra(req: Request, res: Response): Promise<void> {
+  const obraId = valorDeQuery(req.query.obra_id);
+  if (!obraId) {
+    throw new AppError(400, "El parámetro obra_id es requerido.");
+  }
+  const semanas = await reportesService.fondoSemanalPorObra(req.user!, obraId);
+  res.json({ semanas });
+}

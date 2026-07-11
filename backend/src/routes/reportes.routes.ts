@@ -21,6 +21,12 @@ reportesRouter.get(
 );
 
 reportesRouter.get(
+  "/fondo-semanal",
+  permitirRoles("administrativo", "finanzas"),
+  reportesController.fondoSemanalPorObra
+);
+
+reportesRouter.get(
   "/resumen-financiero-consolidado",
   permitirRoles("finanzas"),
   reportesController.resumenFinancieroConsolidado
