@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authRouter } from "./auth.routes";
+import { perfilRouter } from "./perfil.routes";
 import { vehiculoRouter } from "./vehiculo.routes";
 import { obraRouter } from "./obra.routes";
 import { cargaRouter } from "./carga.routes";
@@ -15,6 +16,7 @@ router.get("/health", (_req, res) => {
 });
 
 router.use("/auth", authRouter);
+router.use("/perfiles", perfilRouter);
 router.use("/vehiculos", vehiculoRouter);
 router.use("/obras", obraRouter);
 router.use("/cargas", cargaRouter);
