@@ -9,6 +9,8 @@ precioCombustibleRouter.use(authMiddleware);
 
 precioCombustibleRouter.get("/vigente", precioController.obtenerVigente);
 precioCombustibleRouter.get("/historico", precioController.listarHistorico);
+precioCombustibleRouter.get("/", precioController.listar);
 
-// Solo finanzas da de alta un nuevo precio vigente.
+// Solo finanzas da de alta o corrige un precio.
 precioCombustibleRouter.post("/", permitirRoles("finanzas"), precioController.crear);
+precioCombustibleRouter.put("/:id", permitirRoles("finanzas"), precioController.actualizar);
