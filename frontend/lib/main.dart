@@ -33,6 +33,9 @@ class MainApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Mantiene vivo el vaciado automático de la cola de fotos de ticket
+    // pendientes durante toda la vida de la app (ver providers.dart).
+    ref.watch(colaFotosTicketWatcherProvider);
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

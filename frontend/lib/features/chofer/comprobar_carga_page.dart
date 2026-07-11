@@ -113,6 +113,13 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
 
       final rutaFoto = _fotoTicket!.path;
       final subioFoto = await _subirFotoConReintentos(cargaId, rutaFoto);
+      if (!subioFoto) {
+        // Sin conexión (o la carga todavía no sincronizó): se encola para
+        // subirse sola en cuanto la app detecte conexión de nuevo, sin que el
+        // chofer tenga que volver a esta pantalla (ver
+        // colaFotosTicketWatcherProvider en state/providers.dart).
+        await ref.read(colaFotosTicketServiceProvider).agregar(cargaId: cargaId, rutaLocal: rutaFoto);
+      }
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -120,7 +127,7 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
           content: Text(
             subioFoto
                 ? 'Carga registrada y ticket subido correctamente.'
-                : 'Carga registrada, pero no se pudo subir el ticket. Intenta de nuevo más tarde.',
+                : 'Carga registrada. El ticket se subirá automáticamente en cuanto se recupere la conexión.',
           ),
         ),
       );
@@ -137,7 +144,9 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
   /// La subida de la foto requiere que el backend ya tenga la fila de la
   /// carga (POST /cargas/:id/foto-ticket, ver carga_repository.dart), pero
   /// crear() es local-first: puede tardar un instante en sincronizarse. Se
-  /// reintenta unas pocas veces con espera corta antes de rendirse.
+  /// reintenta unas pocas veces con espera corta antes de rendirse; si de
+  /// todos modos falla (sin conexión), queda en la cola persistente que
+  /// `colaFotosTicketWatcherProvider` vacía sola al reconectar.
   Future<bool> _subirFotoConReintentos(String cargaId, String rutaLocal) async {
     const intentos = 4;
     for (var i = 0; i < intentos; i++) {

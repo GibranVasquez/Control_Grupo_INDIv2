@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:powersync/powersync.dart';
 
@@ -8,6 +10,7 @@ import '../services/api/api_reportes_repository.dart';
 import '../services/api/api_semana_operativa_repository.dart';
 import '../services/api/token_storage.dart';
 import '../services/biometria_service.dart';
+import '../services/cola_fotos_ticket_service.dart';
 import '../services/credenciales_storage.dart';
 import '../services/powersync/powersync_carga_repository.dart';
 import '../services/powersync/powersync_client.dart';
@@ -16,6 +19,7 @@ import '../services/powersync/powersync_precio_combustible_repository.dart';
 import '../services/powersync/powersync_solicitud_autorizacion_repository.dart';
 import '../services/powersync/powersync_vehiculo_repository.dart';
 import '../services/services.dart';
+import 'catalogos_provider.dart';
 import 'session_provider.dart';
 
 /// Se sobreescribe en main.dart con la base ya abierta (abrir el archivo
@@ -174,6 +178,67 @@ final resumenFinancieroSemanalProvider = FutureProvider.family<List<VistaResumen
   obraId,
 ) {
   return ref.watch(reportesRepositoryProvider).resumenFinancieroSemanal(obraId: obraId);
+});
+
+final colaFotosTicketServiceProvider = Provider<ColaFotosTicketService>((ref) {
+  return ColaFotosTicketService(ref.watch(sharedPreferencesProvider));
+});
+
+/// Efecto de fondo (sin UI propia) que vacía la cola de fotos de ticket
+/// pendientes apenas PowerSync reporta conexión recuperada. Reutiliza el
+/// mismo stream que ya usa el resto de la app para conectividad
+/// (`PowerSyncDatabase.statusStream`, ver powersync_client.dart) en vez de un
+/// plugin de conectividad aparte — evita falsos positivos (wifi conectado
+/// pero sin salida real a internet) porque `connected` solo es true cuando
+/// PowerSync de verdad pudo hablar con el servicio de sync.
+///
+/// Debe mantenerse vivo por toda la vida de la app: se referencia con
+/// `ref.watch` en `MainApp.build()` (main.dart) para que no se destruya el
+/// primer frame que ningún widget lo está usando.
+final colaFotosTicketWatcherProvider = Provider<void>((ref) {
+  final database = ref.watch(powerSyncDatabaseProvider);
+  final cola = ref.watch(colaFotosTicketServiceProvider);
+  final cargaRepositorio = ref.watch(cargaRepositoryProvider);
+
+  var flushEnCurso = false;
+
+  Future<void> flush() async {
+    if (flushEnCurso) return;
+    flushEnCurso = true;
+    try {
+      for (final pendiente in cola.listar()) {
+        // Reintentos cortos por elemento: cubren el caso común de que
+        // "conectado" ya sea true pero la carga asociada (subida por la cola
+        // de escritura de PowerSync) todavía no haya llegado al backend —
+        // ver mismo patrón en comprobar_carga_page.dart.
+        var subida = false;
+        for (var intento = 0; intento < 3 && !subida; intento++) {
+          try {
+            await cargaRepositorio.subirFotoTicket(pendiente.cargaId, pendiente.rutaLocal);
+            subida = true;
+          } catch (_) {
+            if (intento < 2) await Future.delayed(Duration(milliseconds: 800 * (intento + 1)));
+          }
+        }
+        if (subida) await cola.quitar(pendiente.cargaId);
+      }
+    } finally {
+      flushEnCurso = false;
+    }
+  }
+
+  // Intento inicial: por si ya hay conexión y quedaron pendientes de una
+  // sesión anterior de la app (no solo de una transición offline->online
+  // detectada en esta misma sesión).
+  unawaited(flush());
+
+  final suscripcion = database.statusStream
+      .map((status) => status.connected)
+      .distinct()
+      .listen((conectado) {
+        if (conectado) unawaited(flush());
+      });
+  ref.onDispose(suscripcion.cancel);
 });
 
 /// true solo si la plataforma es móvil, el dispositivo soporta biometría y ya hay una sesión
