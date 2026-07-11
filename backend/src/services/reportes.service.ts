@@ -16,9 +16,13 @@ export interface FilaConcentradoCargas {
   responsable: string;
   vehiculo_descripcion: string;
   placa: string;
+  tipo_unidad: string;
   km: number | null;
   litros: number;
   rendimiento_km_l: number | null;
+  horas_actual: number | null;
+  horas_anterior: number | null;
+  rendimiento_l_h: number | null;
   precio_por_litro: number;
   tipo_combustible: string;
   importe: number;
@@ -62,9 +66,16 @@ export async function concentradoCargas(
     responsable: c.chofer.nombreCompleto,
     vehiculo_descripcion: `${c.vehiculo.marca} ${c.vehiculo.modelo}`,
     placa: c.vehiculo.placa,
+    tipo_unidad: c.vehiculo.tipoUnidad,
     km: enteroDesdeDecimal(c.kmActual),
     litros: numeroDesdeDecimal(c.litros) ?? 0,
     rendimiento_km_l: numeroDesdeDecimal(c.rendimientoKmL),
+    // Maquinaria se comprueba por horas de operación, no por km (ver
+    // tipo_unidad en vehiculos): estos tres campos vienen null en cargas de
+    // vehículo normal y con valor en cargas de maquinaria.
+    horas_actual: numeroDesdeDecimal(c.horasActual),
+    horas_anterior: numeroDesdeDecimal(c.horasAnterior),
+    rendimiento_l_h: numeroDesdeDecimal(c.rendimientoLH),
     precio_por_litro: numeroDesdeDecimal(c.precioPorLitro) ?? 0,
     tipo_combustible: c.vehiculo.tipoCombustible,
     importe: numeroDesdeDecimal(c.montoTotal) ?? 0,

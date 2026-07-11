@@ -12,6 +12,8 @@ export interface PerfilPublico {
   nombre_completo: string;
   rol: string;
   obra_id: string | null;
+  vehiculo_id: string | null;
+  area: string | null;
   activo: boolean;
 }
 
@@ -23,6 +25,8 @@ export function serializarPerfil(perfil: Perfil): PerfilPublico {
     nombre_completo: perfil.nombreCompleto,
     rol: perfil.rol,
     obra_id: perfil.obraId,
+    vehiculo_id: perfil.vehiculoId,
+    area: perfil.area,
     activo: perfil.activo,
   };
 }
