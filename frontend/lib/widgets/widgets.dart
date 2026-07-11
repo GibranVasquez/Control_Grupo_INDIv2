@@ -1,6 +1,7 @@
 export 'admin_shell.dart';
 export 'avatar_iniciales.dart';
 export 'carga_simulada.dart';
+export 'cerrar_sesion_button.dart';
 export 'estado_solicitud_badge.dart';
 export 'estado_vacio.dart';
 export 'fuel_type_chip_selector.dart';

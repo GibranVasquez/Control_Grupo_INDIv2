@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_breakpoints.dart';
 import '../theme/app_colors.dart';
 import 'avatar_iniciales.dart';
+import 'cerrar_sesion_button.dart';
 
 class AdminNavItem {
   const AdminNavItem({required this.icono, required this.etiqueta});
@@ -138,7 +139,7 @@ class _SidebarContenido extends StatelessWidget {
           ),
         const Spacer(),
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
               AvatarIniciales(nombre: nombreUsuario, diametro: 34),
@@ -157,6 +158,10 @@ class _SidebarContenido extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 4, 12, 16),
+          child: CerrarSesionButton(color: Colors.white70, conEtiqueta: true),
         ),
       ],
     );

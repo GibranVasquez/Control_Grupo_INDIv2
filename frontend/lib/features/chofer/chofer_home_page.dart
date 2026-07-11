@@ -197,6 +197,8 @@ class _Encabezado extends StatelessWidget {
                   ),
                 ),
               ),
+              const CerrarSesionButton(color: Colors.white),
+              const SizedBox(width: 4),
               AvatarIniciales(nombre: perfil.nombreCompleto),
             ],
           ),
