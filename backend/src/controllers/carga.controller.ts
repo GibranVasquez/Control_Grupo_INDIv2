@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import * as cargaService from "../services/carga.service";
+import { storageService } from "../services/storage.service";
 import { AppError } from "../utils/AppError";
 import { paramString, valorDeQuery } from "../utils/validacion";
 
@@ -30,7 +31,12 @@ export async function subirFotoTicket(req: Request, res: Response): Promise<void
   if (!req.file) {
     throw new AppError(400, "El archivo 'foto' es requerido.");
   }
-  const urlPublica = `/uploads/tickets/${req.file.filename}`;
+  const key = await storageService.subirArchivo("tickets", {
+    buffer: req.file.buffer,
+    nombreOriginal: req.file.originalname,
+    mimeType: req.file.mimetype,
+  });
+  const urlPublica = storageService.obtenerUrl(key);
   const carga = await cargaService.subirFotoTicket(req.user!, paramString(req.params.id), urlPublica);
   res.json({ carga });
 }
