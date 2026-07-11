@@ -1,5 +1,6 @@
 export 'carga.dart';
 export 'enums.dart';
+export 'fondo_semanal.dart';
 export 'obra.dart';
 export 'perfil.dart';
 export 'precio_combustible.dart';

@@ -33,7 +33,8 @@ class PowerSyncCargaRepository implements CargaRepository {
   static const _uuid = Uuid();
 
   @override
-  Future<void> crear(Carga carga) async {
+  Future<String> crear(Carga carga) async {
+    final id = _uuid.v4();
     await database.execute(
       '''
       INSERT INTO cargas
@@ -43,7 +44,7 @@ class PowerSyncCargaRepository implements CargaRepository {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       [
-        _uuid.v4(),
+        id,
         carga.solicitudId,
         carga.choferId,
         carga.vehiculoId,
@@ -63,6 +64,17 @@ class PowerSyncCargaRepository implements CargaRepository {
         carga.creadoOffline ? 1 : 0,
       ],
     );
+    return id;
+  }
+
+  @override
+  Future<Carga?> obtenerUltimaPorVehiculo(String vehiculoId) async {
+    final fila = await database.getOptional(
+      'SELECT * FROM cargas WHERE vehiculo_id = ? ORDER BY fecha_carga DESC LIMIT 1',
+      [vehiculoId],
+    );
+    if (fila == null) return null;
+    return Carga.fromJson(_filaAJson(fila));
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:powersync/powersync.dart';
 
+import '../models/models.dart';
 import '../services/api/api_client.dart';
 import '../services/api/api_perfil_repository.dart';
 import '../services/api/api_reportes_repository.dart';
@@ -102,6 +103,60 @@ final reportesRepositoryProvider = Provider<ReportesRepository>((ref) {
 });
 
 final biometriaServiceProvider = Provider<BiometriaService>((ref) => BiometriaService());
+
+// ---------------------------------------------------------------------
+// Providers de lectura por parámetro (family): envuelven un método de
+// repositorio en un FutureProvider cacheado por argumento, para que las
+// pantallas puedan `ref.watch(...)` en vez de manejar Futures a mano.
+// Tras una escritura (crear/resolver/actualizar), quien la dispare debe
+// invalidar el provider correspondiente para refrescar la lectura — mismo
+// patrón que invalidarCatalogos() en catalogos_provider.dart.
+// ---------------------------------------------------------------------
+
+final vehiculoPorIdProvider = FutureProvider.family<Vehiculo, String>((ref, vehiculoId) {
+  return ref.watch(vehiculoRepositoryProvider).obtenerPorId(vehiculoId);
+});
+
+final vehiculosPorObraProvider = FutureProvider.family<List<Vehiculo>, String>((ref, obraId) {
+  return ref.watch(vehiculoRepositoryProvider).listarPorObra(obraId);
+});
+
+final perfilesPorObraProvider = FutureProvider.family<List<Perfil>, String>((ref, obraId) {
+  return ref.watch(perfilRepositoryProvider).listarPorObra(obraId);
+});
+
+final precioVigenteProvider = FutureProvider.family<PrecioCombustible, TipoCombustible>((ref, tipo) {
+  return ref.watch(precioCombustibleRepositoryProvider).obtenerVigente(tipo);
+});
+
+final solicitudesPendientesObraProvider = FutureProvider.family<List<SolicitudAutorizacion>, String>((
+  ref,
+  obraId,
+) {
+  return ref.watch(solicitudAutorizacionRepositoryProvider).listarPendientesPorObra(obraId);
+});
+
+final solicitudesPorChoferProvider = FutureProvider.family<List<SolicitudAutorizacion>, String>((
+  ref,
+  choferId,
+) {
+  return ref.watch(solicitudAutorizacionRepositoryProvider).listarPorChofer(choferId);
+});
+
+final ultimaCargaPorVehiculoProvider = FutureProvider.family<Carga?, String>((ref, vehiculoId) {
+  return ref.watch(cargaRepositoryProvider).obtenerUltimaPorVehiculo(vehiculoId);
+});
+
+final consumoSemanalVehiculoProvider = FutureProvider.family<VistaConsumoVehiculoSemanal, String>((
+  ref,
+  vehiculoId,
+) {
+  return ref.watch(reportesRepositoryProvider).consumoSemanalDeVehiculo(vehiculoId);
+});
+
+final fondoSemanalObraProvider = FutureProvider.family<List<FondoSemanal>, String>((ref, obraId) {
+  return ref.watch(reportesRepositoryProvider).fondoSemanalPorObra(obraId: obraId);
+});
 
 /// true solo si la plataforma es móvil, el dispositivo soporta biometría y ya hay una sesión
 /// previa guardada (es decir, el usuario ya se registró/inició sesión antes en este dispositivo).

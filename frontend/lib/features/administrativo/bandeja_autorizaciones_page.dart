@@ -1,38 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../dev/datos_demo.dart';
 import '../../models/models.dart';
+import '../../state/providers.dart';
+import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/widgets.dart';
 
 /// Bandeja de solicitudes pendientes de la obra del administrativo.
-/// El slider "AUTORIZAR" refleja el diseño original (autorización parcial), pero el
-/// esquema actual solo guarda estado autorizado/rechazado — litros_autorizados está
-/// pendiente de confirmar con backend en Fase 0. Por ahora el slider solo decide si
-/// el comentario es obligatorio; el valor exacto no se persiste todavía.
-class BandejaAutorizacionesPage extends StatefulWidget {
+class BandejaAutorizacionesPage extends ConsumerStatefulWidget {
   const BandejaAutorizacionesPage({super.key});
 
   @override
-  State<BandejaAutorizacionesPage> createState() => _BandejaAutorizacionesPageState();
+  ConsumerState<BandejaAutorizacionesPage> createState() => _BandejaAutorizacionesPageState();
 }
 
-class _BandejaAutorizacionesPageState extends State<BandejaAutorizacionesPage> {
-  late String _seleccionadaId = DatosDemo.solicitudesPendientesObra.first.id;
+class _BandejaAutorizacionesPageState extends ConsumerState<BandejaAutorizacionesPage> {
+  String? _seleccionadaId;
   final Map<String, num> _valoresSlider = {};
   final Map<String, TextEditingController> _comentarios = {};
+  final Set<String> _resolviendo = {};
 
-  Vehiculo _vehiculoDe(SolicitudAutorizacion s) =>
-      DatosDemo.vehiculosObra.firstWhere((v) => v.id == s.vehiculoId);
-
-  Perfil _choferDe(SolicitudAutorizacion s) =>
-      DatosDemo.perfilesChoferes.firstWhere((p) => p.id == s.choferId);
-
-  num _valorSlider(SolicitudAutorizacion s) =>
-      _valoresSlider[s.id] ?? s.litrosSolicitados;
+  num _valorSlider(SolicitudAutorizacion s) => _valoresSlider[s.id] ?? s.litrosSolicitados;
 
   TextEditingController _comentarioCtrl(String id) =>
       _comentarios.putIfAbsent(id, () => TextEditingController());
@@ -45,29 +37,78 @@ class _BandejaAutorizacionesPageState extends State<BandejaAutorizacionesPage> {
     super.dispose();
   }
 
-  void _resolver(SolicitudAutorizacion solicitud, EstadoSolicitud estado) {
+  Future<void> _resolver(String obraId, SolicitudAutorizacion solicitud, EstadoSolicitud estado) async {
     final comentario = _comentarioCtrl(solicitud.id).text.trim();
-    // TODO: SolicitudAutorizacionRepository.resolver(solicitudId, estado, comentario).
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          estado == EstadoSolicitud.autorizado ? 'Solicitud autorizada.' : 'Solicitud rechazada.',
+    setState(() => _resolviendo.add(solicitud.id));
+    try {
+      await ref.read(solicitudAutorizacionRepositoryProvider).resolver(
+            solicitudId: solicitud.id,
+            estado: estado,
+            comentario: comentario.isEmpty ? null : comentario,
+            litrosAutorizados: estado == EstadoSolicitud.autorizado ? _valorSlider(solicitud).toDouble() : null,
+          );
+      ref.invalidate(solicitudesPendientesObraProvider(obraId));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            estado == EstadoSolicitud.autorizado ? 'Solicitud autorizada.' : 'Solicitud rechazada.',
+          ),
         ),
-      ),
-    );
-    setState(() {
-      DatosDemo.solicitudesPendientesObra.removeWhere((s) => s.id == solicitud.id);
-      if (DatosDemo.solicitudesPendientesObra.isNotEmpty) {
-        _seleccionadaId = DatosDemo.solicitudesPendientesObra.first.id;
-      }
-    });
-    debugPrint('comentario capturado: $comentario');
+      );
+      setState(() {
+        _valoresSlider.remove(solicitud.id);
+        _comentarios.remove(solicitud.id)?.dispose();
+        if (_seleccionadaId == solicitud.id) _seleccionadaId = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo resolver la solicitud: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _resolviendo.remove(solicitud.id));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pendientes = DatosDemo.solicitudesPendientesObra;
+    final perfil = ref.watch(sesionProvider);
+    final obraId = perfil?.obraId;
+    if (obraId == null) {
+      return const Center(
+        child: Text('Tu usuario no tiene una obra asignada.', style: TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+
+    final solicitudesAsync = ref.watch(solicitudesPendientesObraProvider(obraId));
+    final perfilesAsync = ref.watch(perfilesPorObraProvider(obraId));
+    final vehiculosAsync = ref.watch(vehiculosPorObraProvider(obraId));
+    final fondoAsync = ref.watch(fondoSemanalObraProvider(obraId));
+
+    if (solicitudesAsync.isLoading || perfilesAsync.isLoading || vehiculosAsync.isLoading || fondoAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final error = solicitudesAsync.error ?? perfilesAsync.error ?? vehiculosAsync.error ?? fondoAsync.error;
+    if (error != null) {
+      return Center(child: Text('No se pudo cargar la bandeja: $error'));
+    }
+
+    final pendientes = solicitudesAsync.requireValue;
+    final perfiles = perfilesAsync.requireValue;
+    final vehiculos = vehiculosAsync.requireValue;
+    final fondos = fondoAsync.requireValue;
+
+    if (_seleccionadaId != null && !pendientes.any((s) => s.id == _seleccionadaId)) {
+      _seleccionadaId = null;
+    }
+    _seleccionadaId ??= pendientes.isEmpty ? null : pendientes.first.id;
+
+    Perfil? choferDe(SolicitudAutorizacion s) => perfiles.where((p) => p.id == s.choferId).firstOrNull;
+    Vehiculo? vehiculoDe(SolicitudAutorizacion s) => vehiculos.where((v) => v.id == s.vehiculoId).firstOrNull;
+
     final seleccionada = pendientes.where((s) => s.id == _seleccionadaId).firstOrNull;
+    final vehiculoSeleccionado = seleccionada == null ? null : vehiculoDe(seleccionada);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,36 +125,68 @@ class _BandejaAutorizacionesPageState extends State<BandejaAutorizacionesPage> {
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19, color: AppColors.navy)),
                     const SizedBox(height: 20),
                     for (final solicitud in pendientes) ...[
-                      if (solicitud.id == _seleccionadaId)
-                        _SolicitudExpandida(
-                          solicitud: solicitud,
-                          chofer: _choferDe(solicitud),
-                          vehiculo: _vehiculoDe(solicitud),
-                          valorSlider: _valorSlider(solicitud),
-                          onSliderChanged: (v) => setState(() => _valoresSlider[solicitud.id] = v),
-                          comentarioCtrl: _comentarioCtrl(solicitud.id),
-                          onAutorizar: () => _resolver(solicitud, EstadoSolicitud.autorizado),
-                          onRechazar: () => _resolver(solicitud, EstadoSolicitud.rechazado),
-                        )
-                      else
-                        _SolicitudColapsada(
-                          solicitud: solicitud,
-                          chofer: _choferDe(solicitud),
-                          vehiculo: _vehiculoDe(solicitud),
-                          onTap: () => setState(() => _seleccionadaId = solicitud.id),
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final chofer = choferDe(solicitud);
+                          final vehiculo = vehiculoDe(solicitud);
+                          if (chofer == null || vehiculo == null) {
+                            return _SolicitudSinDatos(solicitud: solicitud);
+                          }
+                          if (solicitud.id == _seleccionadaId) {
+                            return _SolicitudExpandida(
+                              solicitud: solicitud,
+                              chofer: chofer,
+                              vehiculo: vehiculo,
+                              valorSlider: _valorSlider(solicitud),
+                              onSliderChanged: (v) => setState(() => _valoresSlider[solicitud.id] = v),
+                              comentarioCtrl: _comentarioCtrl(solicitud.id),
+                              resolviendo: _resolviendo.contains(solicitud.id),
+                              onAutorizar: () => _resolver(obraId, solicitud, EstadoSolicitud.autorizado),
+                              onRechazar: () => _resolver(obraId, solicitud, EstadoSolicitud.rechazado),
+                            );
+                          }
+                          return _SolicitudColapsada(
+                            solicitud: solicitud,
+                            chofer: chofer,
+                            vehiculo: vehiculo,
+                            onTap: () => setState(() => _seleccionadaId = solicitud.id),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 12),
                     ],
                   ],
                 ),
         ),
-        if (seleccionada != null) _PanelReglas(vehiculo: _vehiculoDe(seleccionada)),
+        if (vehiculoSeleccionado != null) _PanelReglas(vehiculo: vehiculoSeleccionado, fondos: fondos),
       ],
     );
   }
 }
 
-class _SolicitudExpandida extends StatelessWidget {
+class _SolicitudSinDatos extends StatelessWidget {
+  const _SolicitudSinDatos({required this.solicitud});
+
+  final SolicitudAutorizacion solicitud;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.errorBg,
+        border: Border.all(color: AppColors.errorBorder),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+      ),
+      child: Text(
+        'No se pudo cargar el chofer o vehículo de la solicitud ${solicitud.id}.',
+        style: const TextStyle(color: AppColors.error),
+      ),
+    );
+  }
+}
+
+class _SolicitudExpandida extends ConsumerWidget {
   const _SolicitudExpandida({
     required this.solicitud,
     required this.chofer,
@@ -121,6 +194,7 @@ class _SolicitudExpandida extends StatelessWidget {
     required this.valorSlider,
     required this.onSliderChanged,
     required this.comentarioCtrl,
+    required this.resolviendo,
     required this.onAutorizar,
     required this.onRechazar,
   });
@@ -131,13 +205,14 @@ class _SolicitudExpandida extends StatelessWidget {
   final num valorSlider;
   final ValueChanged<num> onSliderChanged;
   final TextEditingController comentarioCtrl;
+  final bool resolviendo;
   final VoidCallback onAutorizar;
   final VoidCallback onRechazar;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final esParcial = valorSlider < solicitud.litrosSolicitados;
-    final consumo = DatosDemo.consumoSemanalVehiculo1;
+    final consumoAsync = ref.watch(consumoSemanalVehiculoProvider(vehiculo.id));
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -178,7 +253,11 @@ class _SolicitudExpandida extends StatelessWidget {
               const SizedBox(width: 10),
               _MiniCard(
                 label: 'CONSUMO SEMANA',
-                valor: '${consumo.litrosConsumidos.toStringAsFixed(0)} L',
+                valor: consumoAsync.when(
+                  data: (c) => '${c.litrosConsumidos.toStringAsFixed(0)} L',
+                  loading: () => '…',
+                  error: (_, _) => '—',
+                ),
               ),
             ],
           ),
@@ -229,26 +308,41 @@ class _SolicitudExpandida extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: esParcial && comentarioCtrl.text.trim().isEmpty ? null : onAutorizar,
-                  child: Text('Autorizar ${valorSlider.toStringAsFixed(0)} L'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onRechazar,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: const BorderSide(color: AppColors.error),
+          // ListenableBuilder para que Autorizar/Rechazar reaccionen en cada
+          // tecleo del comentario, no solo en el primer build (comentarioCtrl
+          // no dispara setState por sí solo).
+          ListenableBuilder(
+            listenable: comentarioCtrl,
+            builder: (context, _) {
+              final comentarioVacio = comentarioCtrl.text.trim().isEmpty;
+              return Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: resolviendo || (esParcial && comentarioVacio) ? null : onAutorizar,
+                      child: resolviendo
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : Text('Autorizar ${valorSlider.toStringAsFixed(0)} L'),
+                    ),
                   ),
-                  child: const Text('Rechazar'),
-                ),
-              ),
-            ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: resolviendo ? null : onRechazar,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
+                      ),
+                      child: const Text('Rechazar'),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -336,16 +430,22 @@ class _SolicitudColapsada extends StatelessWidget {
 }
 
 class _PanelReglas extends StatelessWidget {
-  const _PanelReglas({required this.vehiculo});
+  const _PanelReglas({required this.vehiculo, required this.fondos});
 
   final Vehiculo vehiculo;
+  final List<FondoSemanal> fondos;
 
   @override
   Widget build(BuildContext context) {
     final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$', decimalDigits: 0);
-    final ejercido = DatosDemo.presupuestoEjercidoObra;
-    final total = DatosDemo.presupuestoSemanalObra;
-    final avance = ejercido / total;
+    // fondoSemanalPorObra ordena desc por periodo_inicio: el primero es la
+    // semana más reciente (la abierta actual, si finanzas ya la capturó).
+    final fondoActual = fondos.firstOrNull;
+    final ejercido = fondoActual?.consumo ?? 0;
+    final total = fondoActual == null
+        ? 0.0
+        : (fondoActual.montoDepositado > 0 ? fondoActual.montoDepositado : fondoActual.montoSolicitado);
+    final avance = total <= 0 ? 0.0 : ejercido / total;
 
     return Container(
       width: 270,
@@ -360,10 +460,13 @@ class _PanelReglas extends StatelessWidget {
           const SizedBox(height: 10),
           const _TarjetaRegla(
             titulo: 'Comentario obligatorio',
-            valor: 'Si se autoriza menos de lo solicitado',
+            valor: 'Al rechazar, o si se autoriza menos de lo solicitado',
           ),
           const SizedBox(height: 10),
-          _TarjetaRegla(titulo: 'Límite semanal \$', valor: formatoMoneda.format(total)),
+          _TarjetaRegla(
+            titulo: 'Límite semanal \$',
+            valor: fondoActual == null ? 'Sin capturar todavía' : formatoMoneda.format(total),
+          ),
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(16),
@@ -377,8 +480,10 @@ class _PanelReglas extends StatelessWidget {
                 const Text('PRESUPUESTO DE LA SEMANA',
                     style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w800, fontSize: 11)),
                 const SizedBox(height: 6),
-                Text('${(avance * 100).toStringAsFixed(0)}% ejercido',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(
+                  fondoActual == null ? 'Sin datos de fondo semanal' : '${(avance * 100).toStringAsFixed(0)}% ejercido',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                ),
                 const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),

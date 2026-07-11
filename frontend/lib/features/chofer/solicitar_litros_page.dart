@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../dev/datos_demo.dart';
 import '../../models/models.dart';
-import '../../state/usuarios_registrados_provider.dart';
+import '../../state/providers.dart';
+import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
@@ -21,17 +21,9 @@ class SolicitarLitrosPage extends ConsumerStatefulWidget {
 
 class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
   TipoCombustible? _combustible;
-  num _litros = 20;
+  num? _litros;
   final _motivoCtrl = TextEditingController();
-
-  // TODO: traer de precios_combustible cuando esté conectado el repositorio.
-  static const _precioPorLitro = DatosDemo.precioMagnaPorLitro;
-
-  /// Si quien inició sesión viene del registro demo (`register_page.dart`), su vehículo/obra/
-  /// combustible declarados ahí son los predeterminados; si no, se usa el vehículo demo genérico.
-  int get _topeVehiculo => DatosDemo.vehiculoAsignado.topeLitrosSemanal.toInt();
-
-  bool get _excedeTope => _litros > _topeVehiculo;
+  bool _enviando = false;
 
   @override
   void dispose() {
@@ -39,8 +31,11 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
     super.dispose();
   }
 
-  void _enviar() {
-    if (_excedeTope && _motivoCtrl.text.trim().isEmpty) {
+  bool _excedeTope(int topeVehiculo) => (_litros ?? 0) > topeVehiculo;
+
+  Future<void> _enviar(Perfil perfil, Vehiculo vehiculo, int topeVehiculo) async {
+    if (_litros == null) return;
+    if (_excedeTope(topeVehiculo) && _motivoCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Cuéntanos por qué necesitas más litros del tope.'),
@@ -48,26 +43,73 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
       );
       return;
     }
-    // TODO: crear la solicitud vía SolicitudAutorizacionRepository (confirma al instante, offline-first).
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Solicitud enviada. Te avisamos en cuanto te autoricen.'),
-      ),
-    );
-    context.pop();
+    final obraId = perfil.obraId;
+    if (obraId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tu usuario no tiene una obra asignada.')),
+      );
+      return;
+    }
+
+    setState(() => _enviando = true);
+    try {
+      await ref.read(solicitudAutorizacionRepositoryProvider).crear(
+            SolicitudAutorizacion(
+              id: '',
+              choferId: perfil.id,
+              vehiculoId: vehiculo.id,
+              obraId: obraId,
+              litrosSolicitados: _litros!.toDouble(),
+              comentario: _motivoCtrl.text.trim().isEmpty ? null : _motivoCtrl.text.trim(),
+              estado: EstadoSolicitud.pendiente,
+              creadoEn: DateTime.now(),
+              creadoOffline: false,
+            ),
+          );
+      ref.invalidate(solicitudesPorChoferProvider(perfil.id));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Solicitud enviada. Te avisamos en cuanto te autoricen.'),
+        ),
+      );
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _enviando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo enviar la solicitud: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Si el login vino del CRUD demo de register_page.dart, se precarga su combustible;
-    // si vino de Supabase (o no hay usuario demo), se usa el vehículo demo genérico.
-    final usuarioDemo = ref.watch(usuarioActualDemoProvider);
-    _combustible ??=
-        usuarioDemo?.tipoCombustible ??
-        DatosDemo.vehiculoAsignado.tipoCombustible;
+    final perfil = ref.watch(sesionProvider);
+    if (perfil?.vehiculoId == null) {
+      return _PantallaError(
+        mensaje: 'Tu perfil no tiene un vehículo asignado. Contacta a tu administrativo.',
+      );
+    }
+
+    final vehiculoAsync = ref.watch(vehiculoPorIdProvider(perfil!.vehiculoId!));
+
+    return vehiculoAsync.when(
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) => _PantallaError(mensaje: 'No se pudo cargar tu vehículo: $error'),
+      data: (vehiculo) => _buildConVehiculo(context, perfil, vehiculo),
+    );
+  }
+
+  Widget _buildConVehiculo(BuildContext context, Perfil perfil, Vehiculo vehiculo) {
+    _combustible ??= vehiculo.tipoCombustible;
+    final topeVehiculo = vehiculo.topeLitrosSemanal.toInt();
+    _litros ??= topeVehiculo < 20 ? topeVehiculo : 20;
+    final excedeTope = _excedeTope(topeVehiculo);
+
+    final precioAsync = ref.watch(precioVigenteProvider(_combustible!));
 
     final manana = DateTime.now().add(const Duration(days: 1));
-    final importeEstimado = _litros * _precioPorLitro;
     final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$');
 
     return Scaffold(
@@ -119,9 +161,9 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
                 const SizedBox(height: 28),
                 Center(
                   child: StepperControl(
-                    valor: _litros,
+                    valor: _litros!,
                     min: 5,
-                    max: _topeVehiculo,
+                    max: topeVehiculo < 5 ? 5 : topeVehiculo,
                     paso: 5,
                     sufijo: 'L',
                     onChanged: (v) => setState(() => _litros = v),
@@ -130,7 +172,7 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
                 const SizedBox(height: 8),
                 Center(
                   child: Text(
-                    'Tope del vehículo: $_topeVehiculo L/semana',
+                    'Tope del vehículo: $topeVehiculo L/semana',
                     style: const TextStyle(
                       color: AppColors.textTertiary,
                       fontSize: 13,
@@ -139,18 +181,29 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
                 ),
                 const SizedBox(height: 20),
                 Center(
-                  child: Text(
-                    'Cuesta aprox. ${formatoMoneda.format(importeEstimado)}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
+                  child: precioAsync.when(
+                    data: (precio) => Text(
+                      'Cuesta aprox. ${formatoMoneda.format(_litros! * precio.precioPorLitro)}',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 17,
+                      ),
+                    ),
+                    loading: () => const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    error: (error, _) => Text(
+                      'No hay un precio vigente configurado para ${_combustible!.etiqueta.toLowerCase()}.',
+                      style: const TextStyle(color: AppColors.error, fontSize: 13),
                     ),
                   ),
                 ),
                 const SizedBox(height: 28),
                 _Etiqueta(
-                  _excedeTope
+                  excedeTope
                       ? '¿POR QUÉ? (OBLIGATORIO)'
                       : '¿POR QUÉ? (OPCIONAL)',
                 ),
@@ -162,7 +215,7 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
                     hintText: 'Ej. viaje extra a la planta de agregados',
                   ),
                 ),
-                if (_excedeTope) ...[
+                if (excedeTope) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -195,9 +248,54 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
                 boxShadow: AppShadows.primaryButton,
               ),
               child: ElevatedButton(
-                onPressed: _enviar,
-                child: const Text('Enviar solicitud'),
+                onPressed: _enviando ? null : () => _enviar(perfil, vehiculo, topeVehiculo),
+                child: _enviando
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                      )
+                    : const Text('Enviar solicitud'),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PantallaError extends StatelessWidget {
+  const _PantallaError({required this.mensaje});
+
+  final String mensaje;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.navy,
+        elevation: 0,
+        title: const Text('Solicitar litros', style: TextStyle(color: AppColors.navy)),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 40),
+                const SizedBox(height: 12),
+                Text(mensaje, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: const Text('Volver'),
+                ),
+              ],
             ),
           ),
         ),

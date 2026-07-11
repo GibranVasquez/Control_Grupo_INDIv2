@@ -16,4 +16,8 @@ abstract class ReportesRepository {
   Future<List<VistaResumenFinancieroSemanal>> resumenFinancieroConsolidado();
 
   Future<VistaConsumoVehiculoSemanal> consumoSemanalDeVehiculo(String vehiculoId);
+
+  /// Presupuesto/fondo semanal de la obra, incluida la semana abierta actual
+  /// (`GET /reportes/fondo-semanal`). Orden descendente por periodo_inicio.
+  Future<List<FondoSemanal>> fondoSemanalPorObra({required String obraId});
 }

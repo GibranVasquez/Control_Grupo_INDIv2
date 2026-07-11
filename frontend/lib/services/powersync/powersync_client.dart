@@ -166,16 +166,19 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
     if (entrada.op != UpdateType.put) return; // la UI nunca edita/borra una carga ya creada.
 
     final datos = entrada.opData ?? const <String, dynamic>{};
+    // precio_por_litro/km_anterior/horas_anterior deliberadamente NO se
+    // mandan: carga.service.ts los ignora si llegan y siempre los calcula él
+    // mismo (precio vigente por tipo de combustible del vehículo, km/horas
+    // anterior de la última carga real) — mandarlos aquí solo sería ruido
+    // (el valor local es apenas una previsualización, ver
+    // carga_repository.dart#obtenerUltimaPorVehiculo).
     await apiClient.dio.post('/cargas', data: {
       'id': entrada.id,
       'solicitud_id': datos['solicitud_id'],
       'vehiculo_id': datos['vehiculo_id'],
       'litros': datos['litros'],
-      'precio_por_litro': datos['precio_por_litro'],
       if (datos['km_actual'] != null) 'km_actual': datos['km_actual'],
-      if (datos['km_anterior'] != null) 'km_anterior': datos['km_anterior'],
       if (datos['horas_actual'] != null) 'horas_actual': datos['horas_actual'],
-      if (datos['horas_anterior'] != null) 'horas_anterior': datos['horas_anterior'],
       'creado_offline': datos['creado_offline'] == 1,
     });
   }

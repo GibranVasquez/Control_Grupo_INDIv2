@@ -8,6 +8,8 @@ class Perfil {
     required this.nombreCompleto,
     required this.rol,
     this.obraId,
+    this.vehiculoId,
+    this.area,
     required this.activo,
   });
 
@@ -19,6 +21,12 @@ class Perfil {
 
   /// Nulo para finanzas, que no está atado a una sola obra.
   final String? obraId;
+
+  /// Vehículo asignado al chofer; nulo para administrativo/finanzas.
+  final String? vehiculoId;
+
+  /// Área/departamento del perfil (informativo, opcional).
+  final String? area;
   final bool activo;
 
   factory Perfil.fromJson(Map<String, dynamic> json) => Perfil(
@@ -28,6 +36,8 @@ class Perfil {
         nombreCompleto: json['nombre_completo'] as String,
         rol: RolUsuario.fromDb(json['rol'] as String),
         obraId: json['obra_id'] as String?,
+        vehiculoId: json['vehiculo_id'] as String?,
+        area: json['area'] as String?,
         activo: json['activo'] as bool,
       );
 
@@ -38,6 +48,8 @@ class Perfil {
         'nombre_completo': nombreCompleto,
         'rol': rol.toDb(),
         'obra_id': obraId,
+        'vehiculo_id': vehiculoId,
+        'area': area,
         'activo': activo,
       };
 }

@@ -65,4 +65,14 @@ class ApiReportesRepository implements ReportesRepository {
         .get<Map<String, dynamic>>('/reportes/consumo-vehiculo-semanal/$vehiculoId');
     return VistaConsumoVehiculoSemanal.fromJson(respuesta.data!['consumo'] as Map<String, dynamic>);
   }
+
+  @override
+  Future<List<FondoSemanal>> fondoSemanalPorObra({required String obraId}) async {
+    final respuesta = await apiClient.dio.get<Map<String, dynamic>>(
+      '/reportes/fondo-semanal',
+      queryParameters: {'obra_id': obraId},
+    );
+    final filas = respuesta.data!['semanas'] as List<dynamic>;
+    return filas.map((fila) => FondoSemanal.fromJson(fila as Map<String, dynamic>)).toList();
+  }
 }

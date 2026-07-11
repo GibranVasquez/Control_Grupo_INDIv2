@@ -1,25 +1,91 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../dev/datos_demo.dart';
 import '../../models/models.dart';
 import '../../router/app_router.dart';
+import '../../state/providers.dart';
+import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../widgets/widgets.dart';
 
-class ChoferHomePage extends StatelessWidget {
+class ChoferHomePage extends ConsumerWidget {
   const ChoferHomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: reemplazar por el perfil/vehículo/solicitudes reales una vez conectados los repositorios.
-    final perfil = DatosDemo.perfilChofer;
-    final vehiculo = DatosDemo.vehiculoAsignado;
-    final solicitudes = DatosDemo.solicitudesDeGerman;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final perfil = ref.watch(sesionProvider);
+    if (perfil == null) return const SizedBox.shrink();
 
+    if (perfil.vehiculoId == null) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Tu perfil no tiene un vehículo asignado. Contacta a tu administrativo.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final vehiculoAsync = ref.watch(vehiculoPorIdProvider(perfil.vehiculoId!));
+    final solicitudesAsync = ref.watch(solicitudesPorChoferProvider(perfil.id));
+
+    if (vehiculoAsync.isLoading || solicitudesAsync.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (vehiculoAsync.hasError) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Text('No se pudo cargar tu vehículo: ${vehiculoAsync.error}'),
+          ),
+        ),
+      );
+    }
+    if (solicitudesAsync.hasError) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Text('No se pudieron cargar tus solicitudes: ${solicitudesAsync.error}'),
+          ),
+        ),
+      );
+    }
+
+    return _ChoferHomeContenido(
+      perfil: perfil,
+      vehiculo: vehiculoAsync.requireValue,
+      solicitudes: solicitudesAsync.requireValue,
+    );
+  }
+}
+
+class _ChoferHomeContenido extends StatelessWidget {
+  const _ChoferHomeContenido({
+    required this.perfil,
+    required this.vehiculo,
+    required this.solicitudes,
+  });
+
+  final Perfil perfil;
+  final Vehiculo vehiculo;
+  final List<SolicitudAutorizacion> solicitudes;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ResponsiveCenter(

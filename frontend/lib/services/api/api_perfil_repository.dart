@@ -79,6 +79,8 @@ class ApiPerfilRepository implements PerfilRepository {
         'nombre_completo': fila['nombre_completo'],
         'rol': fila['rol'],
         'obra_id': fila['obra_id'],
+        'vehiculo_id': fila['vehiculo_id'],
+        'area': fila['area'],
         'activo': fila['activo'] == 1,
       };
 }
