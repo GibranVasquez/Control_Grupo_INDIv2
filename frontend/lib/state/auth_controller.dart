@@ -73,9 +73,15 @@ class AuthController extends Notifier<AsyncValue<void>> {
   }
 
   Future<void> cerrarSesion() async {
+    // Limpia también las credenciales guardadas para "Ingresar con Huella/Face
+    // ID" (ver CredencialesStorage/iniciarSesionConBiometria): de lo contrario
+    // un dispositivo compartido podría reabrir la sesión de este usuario con
+    // solo la biometría de quien lo use después, aunque haya "cerrado sesión".
     if (ref.read(usuarioActualDemoProvider) != null) {
       ref.read(usuarioActualDemoProvider.notifier).establecer(null);
       ref.read(sesionProvider.notifier).cerrarSesion();
+      await ref.read(credencialesStorageProvider).limpiar();
+      ref.invalidate(puedeUsarBiometriaProvider);
       return;
     }
     // Corta el stream de PowerSync y borra los datos sincronizados del disco
@@ -83,7 +89,9 @@ class AuthController extends Notifier<AsyncValue<void>> {
     // perfil en un dispositivo que otro usuario podría usar después.
     await ref.read(powerSyncClientProvider).desconectarYLimpiar();
     await ref.read(tokenStorageProvider).limpiar();
+    await ref.read(credencialesStorageProvider).limpiar();
     ref.read(sesionProvider.notifier).cerrarSesion();
+    ref.invalidate(puedeUsarBiometriaProvider);
   }
 }
 

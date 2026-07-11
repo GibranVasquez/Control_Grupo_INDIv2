@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,13 +50,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.respuestaAutorizacion,
-        builder: (context, state) =>
-            RespuestaAutorizacionPage(solicitud: state.extra as SolicitudAutorizacion),
+        builder: (context, state) {
+          final solicitud = state.extra;
+          if (solicitud is! SolicitudAutorizacion) return const _RutaInvalida();
+          return RespuestaAutorizacionPage(solicitud: solicitud);
+        },
       ),
       GoRoute(
         path: AppRoutes.comprobarCarga,
-        builder: (context, state) =>
-            ComprobarCargaPage(solicitud: state.extra as SolicitudAutorizacion),
+        builder: (context, state) {
+          final solicitud = state.extra;
+          if (solicitud is! SolicitudAutorizacion) return const _RutaInvalida();
+          return ComprobarCargaPage(solicitud: solicitud);
+        },
       ),
       GoRoute(
         path: AppRoutes.administrativo,
@@ -102,4 +108,21 @@ class _SesionListenable extends ChangeNotifier {
   }
 
   final Ref _ref;
+}
+
+/// Pantalla de aterrizaje segura cuando `state.extra` no trae el tipo
+/// esperado (ej. deep link directo a /chofer/comprobar sin pasar por la
+/// pantalla anterior, o un hot-reload que perdió el objeto en memoria):
+/// en vez de que el `as SolicitudAutorizacion` truene con un crash, redirige
+/// al home del chofer apenas se monta el primer frame.
+class _RutaInvalida extends ConsumerWidget {
+  const _RutaInvalida();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) context.go(AppRoutes.chofer);
+    });
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
 }

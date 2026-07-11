@@ -332,7 +332,7 @@ class _SolicitudExpandida extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: resolviendo ? null : onRechazar,
+                      onPressed: resolviendo || comentarioVacio ? null : onRechazar,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.error,
                         side: const BorderSide(color: AppColors.error),
@@ -344,6 +344,13 @@ class _SolicitudExpandida extends ConsumerWidget {
               );
             },
           ),
+          if (!esParcial) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Rechazar siempre requiere un comentario explicando el motivo.',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
+            ),
+          ],
         ],
       ),
     );

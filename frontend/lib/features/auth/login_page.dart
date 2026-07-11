@@ -51,6 +51,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   void _irARegistro() => context.push(AppRoutes.registro);
 
+  void _mostrarProximamente() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Próximamente.')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final estadoLogin = ref.watch(authControllerProvider);
@@ -109,7 +115,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: cargando ? null : () {},
+                              onPressed: cargando ? null : _mostrarProximamente,
                               style: TextButton.styleFrom(padding: EdgeInsets.zero),
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',
@@ -138,7 +144,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           const SizedBox(height: 22),
                           _DivisorConTexto(texto: 'o'),
                           const SizedBox(height: 22),
-                          _BotonSso(habilitado: !cargando),
+                          _BotonSso(habilitado: !cargando, onPressed: _mostrarProximamente),
                           const SizedBox(height: 22),
                           const Center(
                             child: Text(
@@ -358,14 +364,15 @@ class _DivisorConTexto extends StatelessWidget {
 }
 
 class _BotonSso extends StatelessWidget {
-  const _BotonSso({required this.habilitado});
+  const _BotonSso({required this.habilitado, required this.onPressed});
 
   final bool habilitado;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
-      onPressed: habilitado ? () {} : null,
+      onPressed: habilitado ? onPressed : null,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
