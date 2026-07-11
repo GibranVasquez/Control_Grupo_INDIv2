@@ -16,12 +16,10 @@ import 'token_storage.dart';
 /// - [listarPorObra]: lectura del catálogo local de PowerSync. `perfiles` sí
 ///   está en sync-config.yaml para administrativo (su obra) y finanzas
 ///   (todas), que son los únicos roles que llaman a este método.
-/// - [actualizarActivo]: **no soportado todavía**. Ni la API REST expone un
-///   endpoint de escritura sobre `perfiles` (solo existen `/auth/login` y
-///   `/auth/perfil-actual`), ni sync-config.yaml permite escritura sobre esa
-///   tabla (los buckets que la incluyen son de solo lectura). Hace falta un
-///   endpoint tipo `PUT /perfiles/:id` en el backend antes de poder
-///   implementar esto — ver nota en el resumen de la migración.
+/// - [actualizarActivo]: API REST directa (`PUT /perfiles/:id/activo`). No
+///   pasa por PowerSync (sync-config.yaml solo replica `perfiles` de
+///   solo lectura); el cambio llega de vuelta al catálogo local en la
+///   siguiente sincronización normal, igual que vehiculos.crear/actualizar.
 class ApiPerfilRepository implements PerfilRepository {
   ApiPerfilRepository({
     required this.apiClient,
@@ -63,13 +61,8 @@ class ApiPerfilRepository implements PerfilRepository {
   }
 
   @override
-  Future<void> actualizarActivo(String perfilId, bool activo) {
-    throw UnimplementedError(
-      'actualizarActivo no tiene todavía respaldo en el backend: ni la API REST '
-      'expone un endpoint de escritura sobre perfiles, ni sync-config.yaml '
-      'permite escribir esa tabla desde el cliente. Requiere agregar algo como '
-      'PUT /perfiles/:id en backend/src/ antes de poder implementarlo aquí.',
-    );
+  Future<void> actualizarActivo(String perfilId, bool activo) async {
+    await apiClient.dio.put('/perfiles/$perfilId/activo', data: {'activo': activo});
   }
 
   Map<String, dynamic> _filaAJson(Map<String, dynamic> fila) => {

@@ -121,6 +121,10 @@ final vehiculosPorObraProvider = FutureProvider.family<List<Vehiculo>, String>((
   return ref.watch(vehiculoRepositoryProvider).listarPorObra(obraId);
 });
 
+final obraPorIdProvider = FutureProvider.family<Obra, String>((ref, obraId) {
+  return ref.watch(obraRepositoryProvider).obtenerPorId(obraId);
+});
+
 final perfilesPorObraProvider = FutureProvider.family<List<Perfil>, String>((ref, obraId) {
   return ref.watch(perfilRepositoryProvider).listarPorObra(obraId);
 });
@@ -156,6 +160,20 @@ final consumoSemanalVehiculoProvider = FutureProvider.family<VistaConsumoVehicul
 
 final fondoSemanalObraProvider = FutureProvider.family<List<FondoSemanal>, String>((ref, obraId) {
   return ref.watch(reportesRepositoryProvider).fondoSemanalPorObra(obraId: obraId);
+});
+
+final concentradoCargasObraProvider = FutureProvider.family<List<VistaConcentradoCargas>, String>((
+  ref,
+  obraId,
+) {
+  return ref.watch(reportesRepositoryProvider).concentradoCargas(obraId: obraId);
+});
+
+final resumenFinancieroSemanalProvider = FutureProvider.family<List<VistaResumenFinancieroSemanal>, String>((
+  ref,
+  obraId,
+) {
+  return ref.watch(reportesRepositoryProvider).resumenFinancieroSemanal(obraId: obraId);
 });
 
 /// true solo si la plataforma es móvil, el dispositivo soporta biometría y ya hay una sesión

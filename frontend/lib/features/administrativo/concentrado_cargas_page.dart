@@ -1,36 +1,69 @@
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../dev/datos_demo.dart';
 import '../../models/models.dart';
+import '../../state/providers.dart';
+import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/widgets.dart';
 
 /// Tabla que se llena sola con cada comprobación de carga (reemplaza la hoja de Excel).
-class ConcentradoCargasPage extends StatefulWidget {
+class ConcentradoCargasPage extends ConsumerStatefulWidget {
   const ConcentradoCargasPage({super.key});
 
   @override
-  State<ConcentradoCargasPage> createState() => _ConcentradoCargasPageState();
+  ConsumerState<ConcentradoCargasPage> createState() => _ConcentradoCargasPageState();
 }
 
-class _ConcentradoCargasPageState extends State<ConcentradoCargasPage> {
+class _ConcentradoCargasPageState extends ConsumerState<ConcentradoCargasPage> {
   PeriodoFiltro _periodo = PeriodoFiltro.mes;
 
   @override
   Widget build(BuildContext context) {
-    // "Ahora" simulado = fecha más reciente entre los datos mock, para que el
-    // segmentador Día/Semana/Mes/Año tenga registros que mostrar sin backend real.
-    final ahora = DatosDemo.concentradoCargasObra
-        .map((f) => f.fecha)
-        .reduce((a, b) => a.isAfter(b) ? a : b);
+    final obraId = ref.watch(sesionProvider)?.obraId;
+    if (obraId == null) {
+      return const Center(
+        child: Text('Tu usuario no tiene una obra asignada.', style: TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+
+    final cargasAsync = ref.watch(concentradoCargasObraProvider(obraId));
+    return cargasAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text('No se pudo cargar el concentrado: $error')),
+      data: (todasLasCargas) => _Tabla(
+        todasLasCargas: todasLasCargas,
+        periodo: _periodo,
+        onPeriodoChanged: (p) => setState(() => _periodo = p),
+      ),
+    );
+  }
+}
+
+class _Tabla extends StatelessWidget {
+  const _Tabla({
+    required this.todasLasCargas,
+    required this.periodo,
+    required this.onPeriodoChanged,
+  });
+
+  final List<VistaConcentradoCargas> todasLasCargas;
+  final PeriodoFiltro periodo;
+  final ValueChanged<PeriodoFiltro> onPeriodoChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ahora = todasLasCargas.isEmpty
+        ? DateTime.now()
+        : todasLasCargas.map((f) => f.fecha).reduce((a, b) => a.isAfter(b) ? a : b);
     final filas = filtrarPorPeriodo(
-      DatosDemo.concentradoCargasObra,
+      todasLasCargas,
       (f) => f.fecha,
-      _periodo,
+      periodo,
       ahora,
     );
     final formatoFecha = DateFormat('d MMM', 'es_MX');
@@ -50,8 +83,8 @@ class _ConcentradoCargasPageState extends State<ConcentradoCargasPage> {
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19, color: AppColors.navy)),
               ),
               SegmentadorPeriodo(
-                seleccionado: _periodo,
-                onChanged: (p) => setState(() => _periodo = p),
+                seleccionado: periodo,
+                onChanged: onPeriodoChanged,
               ),
               const SizedBox(width: 10),
               OutlinedButton.icon(
@@ -95,7 +128,7 @@ class _ConcentradoCargasPageState extends State<ConcentradoCargasPage> {
                   DataColumn2(label: Text('RESPONSABLE'), size: ColumnSize.L),
                   DataColumn2(label: Text('VEHÍCULO'), size: ColumnSize.M),
                   DataColumn2(label: Text('PLACAS'), size: ColumnSize.S),
-                  DataColumn2(label: Text('KM'), numeric: true, size: ColumnSize.S),
+                  DataColumn2(label: Text('KM / HORAS'), numeric: true, size: ColumnSize.S),
                   DataColumn2(label: Text('LITROS'), numeric: true, size: ColumnSize.S),
                   DataColumn2(label: Text('KM/L'), numeric: true, size: ColumnSize.S),
                   DataColumn2(label: Text('\$/L'), numeric: true, size: ColumnSize.S),
@@ -118,7 +151,10 @@ class _ConcentradoCargasPageState extends State<ConcentradoCargasPage> {
                         DataCell(Text(fila.responsable)),
                         DataCell(Text(fila.vehiculoDescripcion)),
                         DataCell(Text(fila.placa, style: AppTypography.mono(fontSize: 12.5))),
-                        DataCell(Text('${fila.km}', style: AppTypography.mono(fontSize: 12.5))),
+                        DataCell(Text(
+                          fila.esMaquinaria ? '${fila.horasActual ?? '—'} h' : '${fila.km ?? '—'}',
+                          style: AppTypography.mono(fontSize: 12.5),
+                        )),
                         DataCell(Text(fila.litros.toStringAsFixed(0), style: AppTypography.mono(fontSize: 12.5))),
                         DataCell(_CeldaRendimiento(fila: fila)),
                         DataCell(Text(
@@ -174,7 +210,7 @@ class _CeldaRendimiento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final valor = fila.rendimientoKmL;
+    final valor = fila.esMaquinaria ? fila.rendimientoLH : fila.rendimientoKmL;
     if (valor == null) return const Text('—');
     final anomalo = fila.alertaRendimiento == AlertaRendimiento.revisar;
     return Row(

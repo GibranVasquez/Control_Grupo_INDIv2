@@ -1,42 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../dev/datos_demo.dart';
 import '../../models/models.dart';
+import '../../state/providers.dart';
+import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
 import '../../widgets/widgets.dart';
 
-/// Alta/edición de vehículos de la obra del administrativo (Fase 4).
-class VehiculosPage extends StatefulWidget {
+const _estadosVehiculo = ['activo', 'taller', 'baja'];
+
+String _etiquetaEstado(String estado) => switch (estado) {
+      'activo' => 'Activo',
+      'taller' => 'Taller',
+      'baja' => 'Baja',
+      _ => estado,
+    };
+
+/// Alta/edición de vehículos de la obra del administrativo.
+class VehiculosPage extends ConsumerStatefulWidget {
   const VehiculosPage({super.key});
 
   @override
-  State<VehiculosPage> createState() => _VehiculosPageState();
+  ConsumerState<VehiculosPage> createState() => _VehiculosPageState();
 }
 
-class _VehiculosPageState extends State<VehiculosPage> {
-  late List<Vehiculo> _vehiculos = List.of(DatosDemo.vehiculosObra);
-
-  Future<void> _abrirFormulario({Vehiculo? existente}) async {
+class _VehiculosPageState extends ConsumerState<VehiculosPage> {
+  Future<void> _abrirFormulario(String obraId, {Vehiculo? existente}) async {
     final resultado = await showDialog<Vehiculo>(
       context: context,
-      builder: (_) => _VehiculoFormDialog(existente: existente),
+      builder: (_) => _VehiculoFormDialog(existente: existente, obraId: obraId),
     );
     if (resultado == null) return;
-    // TODO: VehiculoRepository.crear / actualizar según corresponda.
-    setState(() {
-      final indice = _vehiculos.indexWhere((v) => v.id == resultado.id);
-      if (indice >= 0) {
-        _vehiculos[indice] = resultado;
+    try {
+      if (existente == null) {
+        await ref.read(vehiculoRepositoryProvider).crear(resultado);
       } else {
-        _vehiculos = [..._vehiculos, resultado];
+        await ref.read(vehiculoRepositoryProvider).actualizar(resultado);
       }
-    });
+      ref.invalidate(vehiculosPorObraProvider(obraId));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(existente == null ? 'Vehículo agregado.' : 'Vehículo actualizado.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo guardar el vehículo: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final obraId = ref.watch(sesionProvider)?.obraId;
+    if (obraId == null) {
+      return const Center(
+        child: Text('Tu usuario no tiene una obra asignada.', style: TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+
+    final vehiculosAsync = ref.watch(vehiculosPorObraProvider(obraId));
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -49,7 +75,7 @@ class _VehiculosPageState extends State<VehiculosPage> {
                     style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19, color: AppColors.navy)),
               ),
               ElevatedButton.icon(
-                onPressed: () => _abrirFormulario(),
+                onPressed: () => _abrirFormulario(obraId),
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('Agregar vehículo'),
               ),
@@ -57,16 +83,25 @@ class _VehiculosPageState extends State<VehiculosPage> {
           ),
           const SizedBox(height: 20),
           Expanded(
-            child: ListView.separated(
-              itemCount: _vehiculos.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, i) {
-                final vehiculo = _vehiculos[i];
-                return _TarjetaVehiculo(
-                  vehiculo: vehiculo,
-                  onTap: () => _abrirFormulario(existente: vehiculo),
-                );
-              },
+            child: vehiculosAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('No se pudieron cargar los vehículos: $error')),
+              data: (vehiculos) => vehiculos.isEmpty
+                  ? const EstadoVacio(
+                      mensaje: 'No hay vehículos registrados en esta obra.',
+                      icono: Icons.local_shipping_outlined,
+                    )
+                  : ListView.separated(
+                      itemCount: vehiculos.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) {
+                        final vehiculo = vehiculos[i];
+                        return _TarjetaVehiculo(
+                          vehiculo: vehiculo,
+                          onTap: () => _abrirFormulario(obraId, existente: vehiculo),
+                        );
+                      },
+                    ),
             ),
           ),
         ],
@@ -83,7 +118,16 @@ class _TarjetaVehiculo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activo = vehiculo.estado == 'activo';
+    final colorEstado = switch (vehiculo.estado) {
+      'activo' => AppColors.success,
+      'taller' => AppColors.warning,
+      _ => AppColors.error,
+    };
+    final fondoEstado = switch (vehiculo.estado) {
+      'activo' => AppColors.successBg,
+      'taller' => AppColors.warningBg,
+      _ => AppColors.errorBg,
+    };
 
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.card),
@@ -104,7 +148,12 @@ class _TarjetaVehiculo extends StatelessWidget {
                 color: AppColors.infoBg,
                 borderRadius: BorderRadius.circular(AppRadii.miniCard),
               ),
-              child: const Icon(Icons.local_shipping_rounded, color: AppColors.primary),
+              child: Icon(
+                vehiculo.tipoUnidad == TipoUnidad.maquinaria
+                    ? Icons.precision_manufacturing_rounded
+                    : Icons.local_shipping_rounded,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -128,13 +177,13 @@ class _TarjetaVehiculo extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: activo ? AppColors.successBg : AppColors.errorBg,
+                    color: fondoEstado,
                     borderRadius: BorderRadius.circular(AppRadii.badge),
                   ),
                   child: Text(
-                    activo ? 'Activo' : 'Inactivo',
+                    _etiquetaEstado(vehiculo.estado),
                     style: TextStyle(
-                      color: activo ? AppColors.success : AppColors.error,
+                      color: colorEstado,
                       fontWeight: FontWeight.w700,
                       fontSize: 11,
                     ),
@@ -150,9 +199,10 @@ class _TarjetaVehiculo extends StatelessWidget {
 }
 
 class _VehiculoFormDialog extends StatefulWidget {
-  const _VehiculoFormDialog({this.existente});
+  const _VehiculoFormDialog({this.existente, required this.obraId});
 
   final Vehiculo? existente;
+  final String obraId;
 
   @override
   State<_VehiculoFormDialog> createState() => _VehiculoFormDialogState();
@@ -166,7 +216,9 @@ class _VehiculoFormDialogState extends State<_VehiculoFormDialog> {
   late final _topeCtrl =
       TextEditingController(text: widget.existente?.topeLitrosSemanal.toStringAsFixed(0));
   late TipoCombustible _tipo = widget.existente?.tipoCombustible ?? TipoCombustible.magna;
-  late bool _activo = (widget.existente?.estado ?? 'activo') == 'activo';
+  late TipoUnidad _tipoUnidad = widget.existente?.tipoUnidad ?? TipoUnidad.vehiculo;
+  late String _estado = widget.existente?.estado ?? 'activo';
+  String? _error;
 
   @override
   void dispose() {
@@ -179,18 +231,22 @@ class _VehiculoFormDialogState extends State<_VehiculoFormDialog> {
   }
 
   void _guardar() {
-    if (_placaCtrl.text.trim().isEmpty || _marcaCtrl.text.trim().isEmpty) return;
+    if (_placaCtrl.text.trim().isEmpty || _marcaCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'Placa y marca son obligatorias.');
+      return;
+    }
 
     final vehiculo = Vehiculo(
-      id: widget.existente?.id ?? 'vehiculo-${DateTime.now().microsecondsSinceEpoch}',
+      id: widget.existente?.id ?? '',
       placa: _placaCtrl.text.trim(),
       marca: _marcaCtrl.text.trim(),
       modelo: _modeloCtrl.text.trim(),
       anio: int.tryParse(_anioCtrl.text),
       tipoCombustible: _tipo,
       topeLitrosSemanal: double.tryParse(_topeCtrl.text) ?? 0,
-      obraId: widget.existente?.obraId ?? DatosDemo.obras.first.id,
-      estado: _activo ? 'activo' : 'inactivo',
+      obraId: widget.obraId,
+      estado: _estado,
+      tipoUnidad: _tipoUnidad,
     );
     Navigator.of(context).pop(vehiculo);
   }
@@ -205,6 +261,17 @@ class _VehiculoFormDialogState extends State<_VehiculoFormDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_error != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorBg,
+                    borderRadius: BorderRadius.circular(AppRadii.miniCard),
+                  ),
+                  child: Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12.5)),
+                ),
+                const SizedBox(height: 12),
+              ],
               TextField(controller: _placaCtrl, decoration: const InputDecoration(labelText: 'Placa')),
               const SizedBox(height: 12),
               Row(
@@ -246,12 +313,34 @@ class _VehiculoFormDialogState extends State<_VehiculoFormDialog> {
               ),
               const SizedBox(height: 8),
               FuelTypeChipSelector(seleccionado: _tipo, onChanged: (t) => setState(() => _tipo = t)),
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Tipo de unidad',
+                    style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
+              ),
               const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Vehículo activo'),
-                value: _activo,
-                onChanged: (v) => setState(() => _activo = v),
+              SegmentedButton<TipoUnidad>(
+                segments: const [
+                  ButtonSegment(value: TipoUnidad.vehiculo, label: Text('Vehículo (km)')),
+                  ButtonSegment(value: TipoUnidad.maquinaria, label: Text('Maquinaria (horas)')),
+                ],
+                selected: {_tipoUnidad},
+                onSelectionChanged: (s) => setState(() => _tipoUnidad = s.first),
+              ),
+              const SizedBox(height: 16),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Estado',
+                    style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w700, fontSize: 12)),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: [
+                  for (final e in _estadosVehiculo) ButtonSegment(value: e, label: Text(_etiquetaEstado(e))),
+                ],
+                selected: {_estado},
+                onSelectionChanged: (s) => setState(() => _estado = s.first),
               ),
             ],
           ),
