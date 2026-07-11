@@ -3,6 +3,7 @@ import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { asegurarAccesoObra } from "../utils/accesoObra";
 import { enteroDesdeDecimal, numeroDesdeDecimal } from "../utils/decimal";
+import * as precioCombustibleService from "./precioCombustible.service";
 import {
   esFechaISOValida,
   esNumeroNoNegativo,
@@ -73,11 +74,8 @@ export interface DatosCrearCarga {
   solicitud_id: unknown;
   vehiculo_id: unknown;
   litros: unknown;
-  precio_por_litro: unknown;
   km_actual?: unknown;
-  km_anterior?: unknown;
   horas_actual?: unknown;
-  horas_anterior?: unknown;
   fecha_carga?: unknown;
   creado_offline?: unknown;
 }
@@ -109,18 +107,8 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
   if (!esNumeroPositivo(datos.litros)) {
     throw new AppError(400, "litros debe ser un número mayor a 0.");
   }
-  if (!esNumeroPositivo(datos.precio_por_litro)) {
-    throw new AppError(400, "precio_por_litro debe ser un número mayor a 0.");
-  }
   if (datos.km_actual !== undefined && datos.km_actual !== null && !esNumeroNoNegativo(datos.km_actual)) {
     throw new AppError(400, "km_actual debe ser un número no negativo.");
-  }
-  if (
-    datos.km_anterior !== undefined &&
-    datos.km_anterior !== null &&
-    !esNumeroNoNegativo(datos.km_anterior)
-  ) {
-    throw new AppError(400, "km_anterior debe ser un número no negativo.");
   }
   if (
     datos.horas_actual !== undefined &&
@@ -129,13 +117,6 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
   ) {
     throw new AppError(400, "horas_actual debe ser un número no negativo.");
   }
-  if (
-    datos.horas_anterior !== undefined &&
-    datos.horas_anterior !== null &&
-    !esNumeroNoNegativo(datos.horas_anterior)
-  ) {
-    throw new AppError(400, "horas_anterior debe ser un número no negativo.");
-  }
   if (datos.fecha_carga !== undefined && datos.fecha_carga !== null && !esFechaISOValida(datos.fecha_carga)) {
     throw new AppError(400, "fecha_carga debe ser una fecha válida.");
   }
@@ -143,17 +124,11 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
     throw new AppError(400, "creado_offline debe ser booleano.");
   }
 
+  // km_anterior/horas_anterior NUNCA se toman del cliente (evita que un
+  // chofer manipule el rendimiento reportado): se derivan más abajo de la
+  // última carga real registrada en el servidor para este vehículo.
   const kmActual = (datos.km_actual as number | undefined) ?? null;
-  const kmAnterior = (datos.km_anterior as number | undefined) ?? null;
-  if (kmActual !== null && kmAnterior !== null && kmActual < kmAnterior) {
-    throw new AppError(400, "km_actual debe ser mayor o igual a km_anterior.");
-  }
-
   const horasActual = (datos.horas_actual as number | undefined) ?? null;
-  const horasAnterior = (datos.horas_anterior as number | undefined) ?? null;
-  if (horasActual !== null && horasAnterior !== null && horasActual < horasAnterior) {
-    throw new AppError(400, "horas_actual debe ser mayor o igual a horas_anterior.");
-  }
 
   // Copias a variables locales tipadas: dentro del closure de $transaction
   // más abajo, TypeScript no conserva el angostamiento de tipo de
@@ -162,7 +137,6 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
   // `unknown`.
   const vehiculoId = datos.vehiculo_id as string;
   const litros = datos.litros as number;
-  const precioPorLitro = datos.precio_por_litro as number;
 
   const solicitud = await prisma.solicitudAutorizacion.findUnique({
     where: { id: datos.solicitud_id },
@@ -182,38 +156,81 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
     throw new AppError(400, "vehiculo_id no coincide con el de la solicitud autorizada.");
   }
 
+  // litros nunca puede exceder lo que el administrativo autorizó, sin
+  // importar lo que el chofer haya solicitado originalmente o mande en el body.
+  const litrosAutorizados = numeroDesdeDecimal(solicitud.litrosAutorizados);
+  if (litrosAutorizados === null) {
+    throw new AppError(400, "La solicitud autorizada no tiene litros autorizados definidos.");
+  }
+  if (litros > litrosAutorizados) {
+    throw new AppError(
+      400,
+      `litros (${litros}) no puede exceder los litros autorizados de la solicitud (${litrosAutorizados}).`
+    );
+  }
+
   const vehiculo = await prisma.vehiculo.findUnique({ where: { id: datos.vehiculo_id } });
   if (!vehiculo) {
     throw new AppError(400, "vehiculo_id no corresponde a un vehículo existente.");
   }
-  // km_actual/km_anterior son para vehículos con kilometraje; horas_actual/horas_anterior
-  // son el horómetro de maquinaria pesada (alternativa a km). Son mutuamente excluyentes.
-  if (vehiculo.tipoUnidad === "maquinaria" && (kmActual !== null || kmAnterior !== null)) {
-    throw new AppError(400, "km_actual/km_anterior no aplican para maquinaria pesada; usa horas_actual/horas_anterior.");
+  // km_actual es para vehículos con kilometraje; horas_actual es el horómetro
+  // de maquinaria pesada (alternativa a km). Son mutuamente excluyentes.
+  if (vehiculo.tipoUnidad === "maquinaria" && kmActual !== null) {
+    throw new AppError(400, "km_actual no aplica para maquinaria pesada; usa horas_actual.");
   }
-  if (vehiculo.tipoUnidad === "vehiculo" && (horasActual !== null || horasAnterior !== null)) {
-    throw new AppError(400, "horas_actual/horas_anterior no aplican para vehículos con kilometraje; usa km_actual/km_anterior.");
+  if (vehiculo.tipoUnidad === "vehiculo" && horasActual !== null) {
+    throw new AppError(400, "horas_actual no aplica para vehículos con kilometraje; usa km_actual.");
   }
 
-  let rendimientoKmL: number | null = null;
-  let rendimientoLH: number | null = null;
-  let alertaRendimiento: AlertaRendimientoTipo | null = null;
-  if (kmActual !== null && kmAnterior !== null) {
-    const kmRecorridos = kmActual - kmAnterior;
-    rendimientoKmL = Math.round((kmRecorridos / (datos.litros as number)) * 100) / 100;
-    alertaRendimiento = calcularAlerta(rendimientoKmL);
+  // precio_por_litro nunca se toma del body: se consulta el precio vigente
+  // para el tipo de combustible del vehículo (nunca lo que mande el cliente).
+  const precioVigente = await precioCombustibleService.buscarVigente(vehiculo.tipoCombustible);
+  if (!precioVigente) {
+    throw new AppError(
+      400,
+      `No hay un precio de combustible vigente configurado para '${vehiculo.tipoCombustible}'.`
+    );
   }
-  if (horasActual !== null && horasAnterior !== null) {
-    const horasTranscurridas = horasActual - horasAnterior;
-    rendimientoLH =
-      horasTranscurridas > 0
-        ? Math.round(((datos.litros as number) / horasTranscurridas) * 100) / 100
-        : null;
-  }
+  const precioPorLitro = numeroDesdeDecimal(precioVigente.precioPorLitro) as number;
 
   let carga: Carga;
   try {
     carga = await prisma.$transaction(async (tx) => {
+      // km_anterior/horas_anterior: se derivan de la última carga real de
+      // este vehículo (no del body) dentro de la misma transacción, para que
+      // queden lo más cerca posible en el tiempo de la carga que se crea.
+      const ultimaCarga = await tx.carga.findFirst({
+        where: { vehiculoId },
+        orderBy: { fechaCarga: "desc" },
+      });
+      const kmAnterior =
+        vehiculo.tipoUnidad === "vehiculo" && ultimaCarga ? enteroDesdeDecimal(ultimaCarga.kmActual) : null;
+      const horasAnterior =
+        vehiculo.tipoUnidad === "maquinaria" && ultimaCarga ? enteroDesdeDecimal(ultimaCarga.horasActual) : null;
+
+      if (kmActual !== null && kmAnterior !== null && kmActual < kmAnterior) {
+        throw new AppError(400, "km_actual debe ser mayor o igual al km_anterior registrado por el servidor.");
+      }
+      if (horasActual !== null && horasAnterior !== null && horasActual < horasAnterior) {
+        throw new AppError(
+          400,
+          "horas_actual debe ser mayor o igual a horas_anterior registrado por el servidor."
+        );
+      }
+
+      let rendimientoKmL: number | null = null;
+      let rendimientoLH: number | null = null;
+      let alertaRendimiento: AlertaRendimientoTipo | null = null;
+      if (kmActual !== null && kmAnterior !== null) {
+        const kmRecorridos = kmActual - kmAnterior;
+        rendimientoKmL = Math.round((kmRecorridos / litros) * 100) / 100;
+        alertaRendimiento = calcularAlerta(rendimientoKmL);
+      }
+      if (horasActual !== null && horasAnterior !== null) {
+        const horasTranscurridas = horasActual - horasAnterior;
+        rendimientoLH = horasTranscurridas > 0 ? Math.round((litros / horasTranscurridas) * 100) / 100 : null;
+      }
+
       // updateMany (no update) porque la condición de la carrera va en el
       // WHERE: si dos requests concurrentes registran una carga contra la
       // misma solicitud (mismo motivo que la doble resolución en

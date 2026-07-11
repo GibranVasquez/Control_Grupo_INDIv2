@@ -31,12 +31,20 @@ function validarTipo(tipo: unknown): TipoCombustible {
   return tipo as TipoCombustible;
 }
 
-export async function obtenerVigente(tipo: unknown): Promise<PrecioCombustiblePublico> {
-  const tipoValidado = validarTipo(tipo);
-  const precio = await prisma.precioCombustible.findFirst({
-    where: { tipoCombustible: tipoValidado, vigenteDesde: { lte: new Date() } },
+/** Uso interno de otros servicios (p.ej. carga.service): el precio vigente
+ * crudo (sin serializar) para un tipo de combustible, o null si no hay uno. */
+export async function buscarVigente(
+  tipoCombustible: TipoCombustible
+): Promise<PrecioCombustible | null> {
+  return prisma.precioCombustible.findFirst({
+    where: { tipoCombustible, vigenteDesde: { lte: new Date() } },
     orderBy: { vigenteDesde: "desc" },
   });
+}
+
+export async function obtenerVigente(tipo: unknown): Promise<PrecioCombustiblePublico> {
+  const tipoValidado = validarTipo(tipo);
+  const precio = await buscarVigente(tipoValidado);
   if (!precio) {
     throw new AppError(404, "No hay un precio vigente para este tipo de combustible.");
   }

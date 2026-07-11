@@ -57,13 +57,23 @@ export async function cerrar(
   }
   asegurarAccesoObra(user, semana.obraId);
 
+  // Camino rápido: no basta por sí solo contra la carrera (dos cierres
+  // concurrentes pueden pasar ambos por aquí antes de que cualquiera
+  // escriba) — esa garantía la da el updateMany condicionado más abajo,
+  // atómico a nivel de fila en Postgres (mismo patrón que
+  // solicitudAutorizacion.service.ts).
   if (semana.estado === "cerrada") {
     throw new AppError(400, "Esta semana operativa ya está cerrada.");
   }
 
-  const actualizada = await prisma.semanaOperativa.update({
-    where: { id: semanaId },
+  const resultado = await prisma.semanaOperativa.updateMany({
+    where: { id: semanaId, estado: "abierta" },
     data: { estado: "cerrada", cerradaPorId: user.perfilId, cerradaEn: new Date() },
   });
+  if (resultado.count === 0) {
+    throw new AppError(400, "Esta semana operativa ya está cerrada.");
+  }
+
+  const actualizada = await prisma.semanaOperativa.findUniqueOrThrow({ where: { id: semanaId } });
   return serializar(actualizada);
 }
