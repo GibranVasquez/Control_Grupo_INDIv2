@@ -7,9 +7,16 @@
 telemetry:
   disable_telemetry_sharing: true
 
-# Base de datos de negocio (gi_control_combustible) como fuente de
-# replicación lógica. powersync_role es de solo lectura + replicación
-# (ver ../sql/prepare-source-db.sql).
+# Base de datos de negocio (Railway) como fuente de replicación lógica.
+# powersync_role es de solo lectura + replicación (ver
+# ../sql/prepare-source-db.sql).
+#
+# sslmode: disable — el schema de PowerSync solo acepta verify-full |
+# verify-ca | disable (no existe un "require" sin verificar certificado).
+# verify-full/verify-ca fallan contra el proxy de Railway (certificate
+# verify failed: el cert que sirve hayabusa.proxy.rlwy.net no valida contra
+# las CAs del sistema). Tradeoff pendiente de decisión: el tráfico de
+# replicación va sin TLS por internet contra Railway. Ver POWERSYNC.md.
 replication:
   connections:
     - type: postgresql

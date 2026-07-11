@@ -203,3 +203,86 @@ cambiaría:
   empezar a replicar. Para confirmarlo: `docker compose logs -f powersync` y
   buscar que ese warning deje de repetirse / aparezca algo como "Snapshot
   completed" o actividad de replicación en vez del error.
+
+## 5. Fuente de datos en Railway: `sslmode` y redes privadas (pendiente antes de producción)
+
+`PS_DATA_SOURCE_URI` en `backend/powersync/.env` ya no apunta al Postgres
+local: apunta a la base de Railway (`hayabusa.proxy.rlwy.net:<puerto>/railway`),
+usando el mismo `wal_level = logical`, `powersync_role` y
+`CREATE PUBLICATION powersync FOR ALL TABLES` de
+[`sql/prepare-source-db.sql`](./sql/prepare-source-db.sql) — el script
+aplica igual sin importar dónde viva el Postgres. La replicación inicial y
+el streaming ya corren correctamente contra Railway (ver logs con
+`docker compose logs -f powersync`: snapshot de las tablas de negocio y
+`"Activated new replication stream"`).
+
+### Por qué `sslmode: disable`
+
+`config/service.yaml` tiene `sslmode: disable` para esta conexión. Esto
+significa que el tráfico de replicación viaja **sin cifrar** por internet
+público entre donde corra este `docker-compose` (hoy, la máquina de
+desarrollo) y Railway. No es ideal, pero es la única opción que funciona
+hoy:
+
+- El schema de configuración de PowerSync solo acepta `verify-full`,
+  `verify-ca` o `disable` para `sslmode` — no existe un modo "cifra pero no
+  valides el certificado" (el `sslmode=require` de libpq no es una opción
+  válida aquí).
+- Probé `verify-full` y `verify-ca` con `psql` directo contra
+  `hayabusa.proxy.rlwy.net`: ambos fallan con `certificate verify failed`
+  — el certificado que sirve el proxy de Railway no valida contra las CAs
+  de confianza del sistema (es de esperarse: el proxy TCP de Railway no
+  está pensado para terminar TLS con un certificado público verificable
+  para ese hostname).
+- Con esas dos opciones descartadas, `disable` es lo único que deja
+  arrancar el worker de replicación.
+
+### Investigación de "Private Networking" de Railway como alternativa
+
+Railway ofrece redes privadas entre servicios de un mismo proyecto
+([docs.railway.com/networking/private-networking](https://docs.railway.com/private-networking)):
+cada servicio obtiene un nombre DNS interno `<servicio>.railway.internal`,
+alcanzable solo a través de un mesh cifrado con Wireguard **entre servicios
+del mismo proyecto y ambiente** en la infraestructura de Railway. El
+tráfico ahí nunca sale a internet público, lo que habría resuelto el
+problema de raíz (no haría falta preocuparse por `sslmode` en absoluto,
+porque no habría superficie pública que proteger).
+
+Confirmado que **no es viable en el setup actual**: esta red privada solo
+es alcanzable desde otros servicios que corran dentro de la infraestructura
+de Railway, no desde una máquina externa (como la que corre este
+`docker-compose` hoy). Verificado con una prueba de DNS desde esta máquina:
+
+```
+$ getent hosts postgres.railway.internal
+(sin salida — no resuelve)
+```
+
+Esto es esperado y consistente con la documentación de Railway: el
+`railway.internal` de un proyecto no es un DNS público, solo resuelve
+dentro de su propia red interna.
+
+### Tarea pendiente antes de producción real
+
+Para eliminar el `sslmode: disable` de raíz (no solo mitigarlo), el
+servicio `powersync` (y opcionalmente `pg-storage`) tendría que desplegarse
+**dentro de Railway, en el mismo proyecto que la base de Postgres** — no
+seguir corriendo vía `docker compose` en una máquina externa. Una vez ahí,
+`PS_DATA_SOURCE_URI` apuntaría a `<nombre-del-servicio-postgres>.railway.internal:5432`
+en vez del proxy público, y el tráfico de replicación nunca tocaría
+internet — sin necesidad de resolver verificación de certificados.
+
+Esto implica, cuando se planee producción real:
+
+1. Migrar `docker-compose.yml` (`powersync` + `pg-storage`) a servicios de
+   Railway (o el storage administrado equivalente si se usa PowerSync
+   Cloud — ver sección 3).
+2. Una vez desplegado ahí, confirmar el nombre exacto del servicio de
+   Postgres en el dashboard/CLI de Railway para armar el
+   `<servicio>.railway.internal`.
+3. Cambiar `PS_DATA_SOURCE_URI` a esa URI interna y quitar la dependencia
+   del proxy público (`*.proxy.rlwy.net`) para esta conexión.
+
+Mientras tanto (desarrollo/staging con PowerSync corriendo fuera de
+Railway), `sslmode: disable` sobre el proxy público es la configuración
+vigente y aceptada como trade-off temporal.
