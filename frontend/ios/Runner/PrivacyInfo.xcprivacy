@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- La app no rastrea usuarios entre apps/sitios de terceros (no hay
+	     publicidad ni analítica de terceros). -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<!-- Datos que la app recolecta y por qué. Ver design/README.md y
+	     backend/prisma/schema.prisma para el detalle de qué guarda cada
+	     tabla; esta lista debe actualizarse si se agregan nuevos campos
+	     personales (ej. ubicación GPS de las evidencias fotográficas,
+	     todavía no implementada). -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- Número de empleado + nombre completo: identifican la cuenta del
+		     chofer/administrativo/finanzas dentro de la empresa. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Foto del ticket de gasolinería al comprobar una carga. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- APIs de "razón requerida" que tocan plugins de primera parte que
+	     usamos (shared_preferences → UserDefaults, path_provider/sqlite vía
+	     PowerSync → marcas de tiempo de archivos). Las versiones recientes
+	     de esos plugins ya traen su propio PrivacyInfo.xcprivacy embebido;
+	     se declara aquí también por transparencia a nivel de la app. -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Usamos Face ID para que ingreses más rápido con tu cuenta ya registrada.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Necesitamos la cámara para que puedas fotografiar el ticket de la gasolinería al comprobar una carga de combustible.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

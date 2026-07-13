@@ -1,41 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../dev/datos_demo.dart';
 import '../../models/models.dart';
+import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
 
 /// Gestión de precios vigentes por tipo de combustible (Fase 5).
 /// Dar de alta un precio nuevo no borra el histórico — solo agrega una fila más vigente.
-class PreciosCombustiblePage extends StatefulWidget {
+class PreciosCombustiblePage extends ConsumerStatefulWidget {
   const PreciosCombustiblePage({super.key});
 
   @override
-  State<PreciosCombustiblePage> createState() => _PreciosCombustiblePageState();
+  ConsumerState<PreciosCombustiblePage> createState() => _PreciosCombustiblePageState();
 }
 
-class _PreciosCombustiblePageState extends State<PreciosCombustiblePage> {
-  late List<PrecioCombustible> _precios = List.of(DatosDemo.precios);
-
-  PrecioCombustible _vigentePorTipo(TipoCombustible tipo) => _precios
-      .where((p) => p.tipoCombustible == tipo)
-      .reduce((a, b) => a.vigenteDesde.isAfter(b.vigenteDesde) ? a : b);
+class _PreciosCombustiblePageState extends ConsumerState<PreciosCombustiblePage> {
+  TipoCombustible _tipoHistorico = TipoCombustible.magna;
 
   Future<void> _nuevoPrecio() async {
     final resultado = await showDialog<PrecioCombustible>(
       context: context,
       builder: (_) => const _NuevoPrecioDialog(),
     );
-    if (resultado == null) return;
-    // TODO: PrecioCombustibleRepository.crear(resultado).
-    setState(() => _precios = [..._precios, resultado]);
+    if (resultado == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(precioCombustibleRepositoryProvider).crear(resultado);
+      for (final tipo in TipoCombustible.values) {
+        ref.invalidate(precioVigenteProvider(tipo));
+        ref.invalidate(precioHistoricoProvider(tipo));
+      }
+      messenger.showSnackBar(const SnackBar(content: Text('Precio actualizado.')));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(backgroundColor: AppColors.error, content: Text('No se pudo guardar el precio: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$');
+    final historicoAsync = ref.watch(precioHistoricoProvider(_tipoHistorico));
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -59,36 +68,60 @@ class _PreciosCombustiblePageState extends State<PreciosCombustiblePage> {
           Row(
             children: [
               for (final tipo in TipoCombustible.values) ...[
-                Expanded(child: _TarjetaPrecioVigente(tipo: tipo, precio: _vigentePorTipo(tipo))),
+                Expanded(child: _TarjetaPrecioVigente(tipo: tipo)),
                 if (tipo != TipoCombustible.values.last) const SizedBox(width: 16),
               ],
             ],
           ),
           const SizedBox(height: 24),
-          const Text('HISTÓRICO',
-              style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 12)),
+          Row(
+            children: [
+              const Text('HISTÓRICO',
+                  style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 12)),
+              const Spacer(),
+              DropdownButton<TipoCombustible>(
+                value: _tipoHistorico,
+                items: TipoCombustible.values
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t.etiqueta)))
+                    .toList(),
+                onChanged: (t) => setState(() => _tipoHistorico = t ?? _tipoHistorico),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           Expanded(
-            child: ListView.separated(
-              itemCount: _precios.length,
-              separatorBuilder: (_, _) => const Divider(color: AppColors.divider, height: 1),
-              itemBuilder: (context, i) {
-                final precio = _precios.reversed.toList()[i];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 110, child: Text(precio.tipoCombustible.etiqueta)),
-                      Expanded(
-                        child: Text(
-                          'Vigente desde ${DateFormat('d MMM y', 'es_MX').format(precio.vigenteDesde)}',
-                          style: const TextStyle(color: AppColors.textSecondary),
-                        ),
+            child: historicoAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('No se pudo cargar el histórico: $error')),
+              data: (precios) {
+                if (precios.isEmpty) {
+                  return const Center(
+                    child: Text('Sin histórico registrado para este combustible.',
+                        style: TextStyle(color: AppColors.textSecondary)),
+                  );
+                }
+                final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$');
+                return ListView.separated(
+                  itemCount: precios.length,
+                  separatorBuilder: (_, _) => const Divider(color: AppColors.divider, height: 1),
+                  itemBuilder: (context, i) {
+                    final precio = precios[i];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Vigente desde ${DateFormat('d MMM y', 'es_MX').format(precio.vigenteDesde)}',
+                              style: const TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                          Text(formatoMoneda.format(precio.precioPorLitro),
+                              style: AppTypography.mono(fontWeight: FontWeight.w600)),
+                        ],
                       ),
-                      Text(formatoMoneda.format(precio.precioPorLitro),
-                          style: AppTypography.mono(fontWeight: FontWeight.w600)),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -99,15 +132,16 @@ class _PreciosCombustiblePageState extends State<PreciosCombustiblePage> {
   }
 }
 
-class _TarjetaPrecioVigente extends StatelessWidget {
-  const _TarjetaPrecioVigente({required this.tipo, required this.precio});
+class _TarjetaPrecioVigente extends ConsumerWidget {
+  const _TarjetaPrecioVigente({required this.tipo});
 
   final TipoCombustible tipo;
-  final PrecioCombustible precio;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final precioAsync = ref.watch(precioVigenteProvider(tipo));
     final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -121,10 +155,19 @@ class _TarjetaPrecioVigente extends StatelessWidget {
           Text(tipo.etiqueta.toUpperCase(),
               style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 11)),
           const SizedBox(height: 6),
-          Text(formatoMoneda.format(precio.precioPorLitro),
-              style: AppTypography.mono(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          precioAsync.when(
+            data: (precio) => Text(formatoMoneda.format(precio.precioPorLitro),
+                style: AppTypography.mono(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.primary)),
+            loading: () => const SizedBox(
+              height: 26,
+              width: 26,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            error: (_, _) => const Text('Sin precio vigente',
+                style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
           const SizedBox(height: 4),
-          Text('por litro', style: TextStyle(color: AppColors.textTertiary, fontSize: 12)),
+          const Text('por litro', style: TextStyle(color: AppColors.textTertiary, fontSize: 12)),
         ],
       ),
     );
@@ -153,7 +196,7 @@ class _NuevoPrecioDialogState extends State<_NuevoPrecioDialog> {
     if (precio == null || precio <= 0) return;
     Navigator.of(context).pop(
       PrecioCombustible(
-        id: 'precio-${DateTime.now().microsecondsSinceEpoch}',
+        id: 'precio-nuevo',
         tipoCombustible: _tipo,
         precioPorLitro: precio,
         vigenteDesde: DateTime.now(),

@@ -23,7 +23,8 @@ import '../solicitud_autorizacion_repository.dart';
 /// valida y lo usa como id real (backend/src/services/solicitudAutorizacion.service.ts) —
 /// la fila local y la fila del servidor son siempre el mismo registro, sin
 /// duplicados ni ventana en la que desaparezca de la UI.
-class PowerSyncSolicitudAutorizacionRepository implements SolicitudAutorizacionRepository {
+class PowerSyncSolicitudAutorizacionRepository
+    implements SolicitudAutorizacionRepository {
   PowerSyncSolicitudAutorizacionRepository({required this.database});
 
   final PowerSyncDatabase database;
@@ -60,11 +61,15 @@ class PowerSyncSolicitudAutorizacionRepository implements SolicitudAutorizacionR
       'SELECT * FROM solicitudes_autorizacion WHERE chofer_id = ? ORDER BY creado_en DESC',
       [choferId],
     );
-    return filas.map((fila) => SolicitudAutorizacion.fromJson(_filaAJson(fila))).toList();
+    return filas
+        .map((fila) => SolicitudAutorizacion.fromJson(_filaAJson(fila)))
+        .toList();
   }
 
   @override
-  Future<List<SolicitudAutorizacion>> listarPendientesPorObra(String obraId) async {
+  Future<List<SolicitudAutorizacion>> listarPendientesPorObra(
+    String obraId,
+  ) async {
     final filas = await database.getAll(
       '''
       SELECT * FROM solicitudes_autorizacion
@@ -73,7 +78,32 @@ class PowerSyncSolicitudAutorizacionRepository implements SolicitudAutorizacionR
       ''',
       [obraId],
     );
-    return filas.map((fila) => SolicitudAutorizacion.fromJson(_filaAJson(fila))).toList();
+    return filas
+        .map((fila) => SolicitudAutorizacion.fromJson(_filaAJson(fila)))
+        .toList();
+  }
+
+  @override
+  Stream<List<SolicitudAutorizacion>> watchTodasPorObra(String obraId) {
+    // database.watch() re-emite automáticamente cuando cambia cualquier fila
+    // de solicitudes_autorizacion para esta obra — tanto por una escritura
+    // local como por una fila que PowerSync acaba de sincronizar desde el
+    // servidor (otro chofer u otro administrativo). Así la bandeja se
+    // actualiza sola, sin necesidad de invalidar el provider a mano.
+    return database
+        .watch(
+          '''
+          SELECT * FROM solicitudes_autorizacion
+          WHERE obra_id = ?
+          ORDER BY creado_en DESC
+          ''',
+          parameters: [obraId],
+        )
+        .map(
+          (filas) => filas
+              .map((fila) => SolicitudAutorizacion.fromJson(_filaAJson(fila)))
+              .toList(),
+        );
   }
 
   @override
@@ -87,12 +117,14 @@ class PowerSyncSolicitudAutorizacionRepository implements SolicitudAutorizacionR
     // si se autoriza sin especificar litrosAutorizados, se entiende que se
     // autoriza el total solicitado originalmente.
     double? litrosAutorizadosFinal = litrosAutorizados;
-    if (estado == EstadoSolicitud.autorizado && litrosAutorizadosFinal == null) {
+    if (estado == EstadoSolicitud.autorizado &&
+        litrosAutorizadosFinal == null) {
       final fila = await database.getOptional(
         'SELECT litros_solicitados FROM solicitudes_autorizacion WHERE id = ?',
         [solicitudId],
       );
-      litrosAutorizadosFinal = (fila?['litros_solicitados'] as num?)?.toDouble();
+      litrosAutorizadosFinal = (fila?['litros_solicitados'] as num?)
+          ?.toDouble();
     }
 
     await database.execute(
@@ -106,19 +138,19 @@ class PowerSyncSolicitudAutorizacionRepository implements SolicitudAutorizacionR
   }
 
   Map<String, dynamic> _filaAJson(Map<String, dynamic> fila) => {
-        'id': fila['id'],
-        'chofer_id': fila['chofer_id'],
-        'vehiculo_id': fila['vehiculo_id'],
-        'obra_id': fila['obra_id'],
-        'litros_solicitados': fila['litros_solicitados'],
-        'litros_autorizados': fila['litros_autorizados'],
-        'comentario': fila['comentario'],
-        'estado': fila['estado'],
-        'resuelto_por': fila['resuelto_por'],
-        'resuelto_en': fila['resuelto_en'],
-        'creado_en': fila['creado_en'],
-        'creado_offline': fila['creado_offline'] == 1,
-        'actividad': fila['actividad'],
-        'responsable': fila['responsable'],
-      };
+    'id': fila['id'],
+    'chofer_id': fila['chofer_id'],
+    'vehiculo_id': fila['vehiculo_id'],
+    'obra_id': fila['obra_id'],
+    'litros_solicitados': fila['litros_solicitados'],
+    'litros_autorizados': fila['litros_autorizados'],
+    'comentario': fila['comentario'],
+    'estado': fila['estado'],
+    'resuelto_por': fila['resuelto_por'],
+    'resuelto_en': fila['resuelto_en'],
+    'creado_en': fila['creado_en'],
+    'creado_offline': fila['creado_offline'] == 1,
+    'actividad': fila['actividad'],
+    'responsable': fila['responsable'],
+  };
 }

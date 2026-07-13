@@ -15,16 +15,19 @@ class BandejaAutorizacionesPage extends ConsumerStatefulWidget {
   const BandejaAutorizacionesPage({super.key});
 
   @override
-  ConsumerState<BandejaAutorizacionesPage> createState() => _BandejaAutorizacionesPageState();
+  ConsumerState<BandejaAutorizacionesPage> createState() =>
+      _BandejaAutorizacionesPageState();
 }
 
-class _BandejaAutorizacionesPageState extends ConsumerState<BandejaAutorizacionesPage> {
+class _BandejaAutorizacionesPageState
+    extends ConsumerState<BandejaAutorizacionesPage> {
   String? _seleccionadaId;
   final Map<String, num> _valoresSlider = {};
   final Map<String, TextEditingController> _comentarios = {};
   final Set<String> _resolviendo = {};
 
-  num _valorSlider(SolicitudAutorizacion s) => _valoresSlider[s.id] ?? s.litrosSolicitados;
+  num _valorSlider(SolicitudAutorizacion s) =>
+      _valoresSlider[s.id] ?? s.litrosSolicitados;
 
   TextEditingController _comentarioCtrl(String id) =>
       _comentarios.putIfAbsent(id, () => TextEditingController());
@@ -37,22 +40,43 @@ class _BandejaAutorizacionesPageState extends ConsumerState<BandejaAutorizacione
     super.dispose();
   }
 
-  Future<void> _resolver(String obraId, SolicitudAutorizacion solicitud, EstadoSolicitud estado) async {
+  Future<void> _resolver(
+    String obraId,
+    SolicitudAutorizacion solicitud,
+    EstadoSolicitud estado,
+  ) async {
     final comentario = _comentarioCtrl(solicitud.id).text.trim();
     setState(() => _resolviendo.add(solicitud.id));
     try {
-      await ref.read(solicitudAutorizacionRepositoryProvider).resolver(
+      await ref
+          .read(solicitudAutorizacionRepositoryProvider)
+          .resolver(
             solicitudId: solicitud.id,
             estado: estado,
             comentario: comentario.isEmpty ? null : comentario,
-            litrosAutorizados: estado == EstadoSolicitud.autorizado ? _valorSlider(solicitud).toDouble() : null,
+            litrosAutorizados: estado == EstadoSolicitud.autorizado
+                ? _valorSlider(solicitud).toDouble()
+                : null,
           );
       ref.invalidate(solicitudesPendientesObraProvider(obraId));
       if (!mounted) return;
+      final autorizada = estado == EstadoSolicitud.autorizado;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            estado == EstadoSolicitud.autorizado ? 'Solicitud autorizada.' : 'Solicitud rechazada.',
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: autorizada ? AppColors.success : AppColors.navy,
+          content: Row(
+            children: [
+              Icon(
+                autorizada ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                autorizada ? 'Solicitud autorizada.' : 'Solicitud rechazada.',
+              ),
+            ],
           ),
         ),
       );
@@ -77,19 +101,31 @@ class _BandejaAutorizacionesPageState extends ConsumerState<BandejaAutorizacione
     final obraId = perfil?.obraId;
     if (obraId == null) {
       return const Center(
-        child: Text('Tu usuario no tiene una obra asignada.', style: TextStyle(color: AppColors.textSecondary)),
+        child: Text(
+          'Tu usuario no tiene una obra asignada.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
       );
     }
 
-    final solicitudesAsync = ref.watch(solicitudesPendientesObraProvider(obraId));
+    final solicitudesAsync = ref.watch(
+      solicitudesPendientesObraProvider(obraId),
+    );
     final perfilesAsync = ref.watch(perfilesPorObraProvider(obraId));
     final vehiculosAsync = ref.watch(vehiculosPorObraProvider(obraId));
     final fondoAsync = ref.watch(fondoSemanalObraProvider(obraId));
 
-    if (solicitudesAsync.isLoading || perfilesAsync.isLoading || vehiculosAsync.isLoading || fondoAsync.isLoading) {
+    if (solicitudesAsync.isLoading ||
+        perfilesAsync.isLoading ||
+        vehiculosAsync.isLoading ||
+        fondoAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final error = solicitudesAsync.error ?? perfilesAsync.error ?? vehiculosAsync.error ?? fondoAsync.error;
+    final error =
+        solicitudesAsync.error ??
+        perfilesAsync.error ??
+        vehiculosAsync.error ??
+        fondoAsync.error;
     if (error != null) {
       return Center(child: Text('No se pudo cargar la bandeja: $error'));
     }
@@ -99,67 +135,207 @@ class _BandejaAutorizacionesPageState extends ConsumerState<BandejaAutorizacione
     final vehiculos = vehiculosAsync.requireValue;
     final fondos = fondoAsync.requireValue;
 
-    if (_seleccionadaId != null && !pendientes.any((s) => s.id == _seleccionadaId)) {
+    if (_seleccionadaId != null &&
+        !pendientes.any((s) => s.id == _seleccionadaId)) {
       _seleccionadaId = null;
     }
     _seleccionadaId ??= pendientes.isEmpty ? null : pendientes.first.id;
 
-    Perfil? choferDe(SolicitudAutorizacion s) => perfiles.where((p) => p.id == s.choferId).firstOrNull;
-    Vehiculo? vehiculoDe(SolicitudAutorizacion s) => vehiculos.where((v) => v.id == s.vehiculoId).firstOrNull;
+    Perfil? choferDe(SolicitudAutorizacion s) =>
+        perfiles.where((p) => p.id == s.choferId).firstOrNull;
+    Vehiculo? vehiculoDe(SolicitudAutorizacion s) =>
+        vehiculos.where((v) => v.id == s.vehiculoId).firstOrNull;
 
-    final seleccionada = pendientes.where((s) => s.id == _seleccionadaId).firstOrNull;
-    final vehiculoSeleccionado = seleccionada == null ? null : vehiculoDe(seleccionada);
+    final seleccionada = pendientes
+        .where((s) => s.id == _seleccionadaId)
+        .firstOrNull;
+    final vehiculoSeleccionado = seleccionada == null
+        ? null
+        : vehiculoDe(seleccionada);
+
+    final todasAsync = ref.watch(solicitudesTodasObraProvider(obraId));
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: pendientes.isEmpty
-              ? const Center(
-                  child: Text('No hay solicitudes pendientes.', style: TextStyle(color: AppColors.textSecondary)),
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(24),
-                  children: [
-                    const Text('Bandeja de autorizaciones',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 19, color: AppColors.navy)),
-                    const SizedBox(height: 20),
-                    for (final solicitud in pendientes) ...[
-                      Builder(
-                        builder: (context) {
-                          final chofer = choferDe(solicitud);
-                          final vehiculo = vehiculoDe(solicitud);
-                          if (chofer == null || vehiculo == null) {
-                            return _SolicitudSinDatos(solicitud: solicitud);
-                          }
-                          if (solicitud.id == _seleccionadaId) {
-                            return _SolicitudExpandida(
-                              solicitud: solicitud,
-                              chofer: chofer,
-                              vehiculo: vehiculo,
-                              valorSlider: _valorSlider(solicitud),
-                              onSliderChanged: (v) => setState(() => _valoresSlider[solicitud.id] = v),
-                              comentarioCtrl: _comentarioCtrl(solicitud.id),
-                              resolviendo: _resolviendo.contains(solicitud.id),
-                              onAutorizar: () => _resolver(obraId, solicitud, EstadoSolicitud.autorizado),
-                              onRechazar: () => _resolver(obraId, solicitud, EstadoSolicitud.rechazado),
-                            );
-                          }
-                          return _SolicitudColapsada(
-                            solicitud: solicitud,
-                            chofer: chofer,
-                            vehiculo: vehiculo,
-                            onTap: () => setState(() => _seleccionadaId = solicitud.id),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ],
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              const Text(
+                'Bandeja de autorizaciones',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 19,
+                  color: AppColors.navy,
                 ),
+              ),
+              const SizedBox(height: 20),
+              if (pendientes.isEmpty)
+                const EstadoVacio(
+                  mensaje: 'No hay solicitudes pendientes.',
+                  icono: Icons.mark_email_read_outlined,
+                )
+              else
+                for (final solicitud in pendientes) ...[
+                  Builder(
+                    builder: (context) {
+                      final chofer = choferDe(solicitud);
+                      final vehiculo = vehiculoDe(solicitud);
+                      if (chofer == null || vehiculo == null) {
+                        return _SolicitudSinDatos(solicitud: solicitud);
+                      }
+                      if (solicitud.id == _seleccionadaId) {
+                        return _SolicitudExpandida(
+                          solicitud: solicitud,
+                          chofer: chofer,
+                          vehiculo: vehiculo,
+                          valorSlider: _valorSlider(solicitud),
+                          onSliderChanged: (v) =>
+                              setState(() => _valoresSlider[solicitud.id] = v),
+                          comentarioCtrl: _comentarioCtrl(solicitud.id),
+                          resolviendo: _resolviendo.contains(solicitud.id),
+                          onAutorizar: () => _resolver(
+                            obraId,
+                            solicitud,
+                            EstadoSolicitud.autorizado,
+                          ),
+                          onRechazar: () => _resolver(
+                            obraId,
+                            solicitud,
+                            EstadoSolicitud.rechazado,
+                          ),
+                        );
+                      }
+                      return _SolicitudColapsada(
+                        solicitud: solicitud,
+                        chofer: chofer,
+                        vehiculo: vehiculo,
+                        onTap: () =>
+                            setState(() => _seleccionadaId = solicitud.id),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              const SizedBox(height: 32),
+              const Row(
+                children: [
+                  PuntoEnVivo(),
+                  SizedBox(width: 8),
+                  Text(
+                    'TODAS LAS SOLICITUDES · EN VIVO',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              todasAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (error, _) => Text(
+                  'No se pudo cargar el historial: $error',
+                  style: const TextStyle(color: AppColors.error),
+                ),
+                data: (todas) {
+                  if (todas.isEmpty) {
+                    return const Text(
+                      'Todavía no se ha enviado ninguna solicitud.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final solicitud in todas) ...[
+                        _SolicitudHistorialItem(
+                          solicitud: solicitud,
+                          chofer: choferDe(solicitud),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
         ),
-        if (vehiculoSeleccionado != null) _PanelReglas(vehiculo: vehiculoSeleccionado, fondos: fondos),
+        if (vehiculoSeleccionado != null)
+          _PanelReglas(vehiculo: vehiculoSeleccionado, fondos: fondos),
       ],
+    );
+  }
+}
+
+class _SolicitudHistorialItem extends StatelessWidget {
+  const _SolicitudHistorialItem({
+    required this.solicitud,
+    required this.chofer,
+  });
+
+  final SolicitudAutorizacion solicitud;
+  final Perfil? chofer;
+
+  @override
+  Widget build(BuildContext context) {
+    final fechaHora = DateFormat(
+      "d MMM y, HH:mm:ss",
+      'es_MX',
+    ).format(solicitud.creadoEn.toLocal());
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.miniCard),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          AvatarIniciales(
+            nombre: chofer?.nombreCompleto ?? '?',
+            diametro: 32,
+            background: AppColors.textTertiary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  chofer?.nombreCompleto ?? 'Chofer no disponible',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
+                ),
+                Text(
+                  fechaHora,
+                  style: AppTypography.mono(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${solicitud.litrosSolicitados.toStringAsFixed(0)} L',
+            style: AppTypography.mono(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(width: 10),
+          EstadoSolicitudBadge(estado: solicitud.estado),
+        ],
+      ),
     );
   }
 }
@@ -226,17 +402,28 @@ class _SolicitudExpandida extends ConsumerWidget {
         children: [
           Row(
             children: [
-              AvatarIniciales(nombre: chofer.nombreCompleto, background: AppColors.primary),
+              AvatarIniciales(
+                nombre: chofer.nombreCompleto,
+                background: AppColors.primary,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(chofer.nombreCompleto,
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                    Text(
+                      chofer.nombreCompleto,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
                     Text(
                       '${vehiculo.descripcion} · ${vehiculo.placa} · ${vehiculo.tipoCombustible.etiqueta}',
-                      style: AppTypography.mono(fontSize: 12.5, color: AppColors.textSecondary),
+                      style: AppTypography.mono(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -247,9 +434,15 @@ class _SolicitudExpandida extends ConsumerWidget {
           const SizedBox(height: 18),
           Row(
             children: [
-              _MiniCard(label: 'SOLICITADO', valor: '${solicitud.litrosSolicitados.toStringAsFixed(0)} L'),
+              _MiniCard(
+                label: 'SOLICITADO',
+                valor: '${solicitud.litrosSolicitados.toStringAsFixed(0)} L',
+              ),
               const SizedBox(width: 10),
-              _MiniCard(label: 'TOPE VEHÍCULO', valor: '${vehiculo.topeLitrosSemanal.toStringAsFixed(0)} L'),
+              _MiniCard(
+                label: 'TOPE VEHÍCULO',
+                valor: '${vehiculo.topeLitrosSemanal.toStringAsFixed(0)} L',
+              ),
               const SizedBox(width: 10),
               _MiniCard(
                 label: 'CONSUMO SEMANA',
@@ -265,10 +458,21 @@ class _SolicitudExpandida extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('AUTORIZAR',
-                  style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 12)),
-              Text('${valorSlider.toStringAsFixed(0)} L',
-                  style: AppTypography.mono(fontWeight: FontWeight.w600, fontSize: 14)),
+              const Text(
+                'AUTORIZAR',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                '${valorSlider.toStringAsFixed(0)} L',
+                style: AppTypography.mono(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
           Slider(
@@ -291,14 +495,21 @@ class _SolicitudExpandida extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('⚠ COMENTARIO OBLIGATORIO',
-                      style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w800, fontSize: 12)),
+                  const Text(
+                    '⚠ COMENTARIO OBLIGATORIO',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: comentarioCtrl,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      hintText: 'Explica por qué se autoriza menos de lo solicitado',
+                      hintText:
+                          'Explica por qué se autoriza menos de lo solicitado',
                       filled: true,
                       fillColor: Colors.white,
                     ),
@@ -319,20 +530,29 @@ class _SolicitudExpandida extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: resolviendo || (esParcial && comentarioVacio) ? null : onAutorizar,
+                      onPressed: resolviendo || (esParcial && comentarioVacio)
+                          ? null
+                          : onAutorizar,
                       child: resolviendo
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
-                          : Text('Autorizar ${valorSlider.toStringAsFixed(0)} L'),
+                          : Text(
+                              'Autorizar ${valorSlider.toStringAsFixed(0)} L',
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: resolviendo || comentarioVacio ? null : onRechazar,
+                      onPressed: resolviendo || comentarioVacio
+                          ? null
+                          : onRechazar,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.error,
                         side: const BorderSide(color: AppColors.error),
@@ -375,10 +595,22 @@ class _MiniCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w800, fontSize: 10.5)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(valor, style: AppTypography.mono(fontWeight: FontWeight.w600, fontSize: 15)),
+            Text(
+              valor,
+              style: AppTypography.mono(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
           ],
         ),
       ),
@@ -413,20 +645,34 @@ class _SolicitudColapsada extends StatelessWidget {
         ),
         child: Row(
           children: [
-            AvatarIniciales(nombre: chofer.nombreCompleto, diametro: 36, background: AppColors.textTertiary),
+            AvatarIniciales(
+              nombre: chofer.nombreCompleto,
+              diametro: 36,
+              background: AppColors.textTertiary,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(chofer.nombreCompleto, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  Text('${vehiculo.descripcion} · ${vehiculo.placa}',
-                      style: AppTypography.mono(fontSize: 12, color: AppColors.textSecondary)),
+                  Text(
+                    chofer.nombreCompleto,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    '${vehiculo.descripcion} · ${vehiculo.placa}',
+                    style: AppTypography.mono(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Text('${solicitud.litrosSolicitados.toStringAsFixed(0)} L',
-                style: AppTypography.mono(fontWeight: FontWeight.w600)),
+            Text(
+              '${solicitud.litrosSolicitados.toStringAsFixed(0)} L',
+              style: AppTypography.mono(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(width: 8),
             const Icon(Icons.chevron_right, color: AppColors.textTertiary),
           ],
@@ -444,14 +690,20 @@ class _PanelReglas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$', decimalDigits: 0);
+    final formatoMoneda = NumberFormat.currency(
+      locale: 'es_MX',
+      symbol: r'$',
+      decimalDigits: 0,
+    );
     // fondoSemanalPorObra ordena desc por periodo_inicio: el primero es la
     // semana más reciente (la abierta actual, si finanzas ya la capturó).
     final fondoActual = fondos.firstOrNull;
     final ejercido = fondoActual?.consumo ?? 0;
     final total = fondoActual == null
         ? 0.0
-        : (fondoActual.montoDepositado > 0 ? fondoActual.montoDepositado : fondoActual.montoSolicitado);
+        : (fondoActual.montoDepositado > 0
+              ? fondoActual.montoDepositado
+              : fondoActual.montoSolicitado);
     final avance = total <= 0 ? 0.0 : ejercido / total;
 
     return Container(
@@ -461,9 +713,16 @@ class _PanelReglas extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Reglas', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+          const Text(
+            'Reglas',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+          ),
           const SizedBox(height: 14),
-          _TarjetaRegla(titulo: 'Tope por vehículo', valor: '${vehiculo.topeLitrosSemanal.toStringAsFixed(0)} L / semana'),
+          _TarjetaRegla(
+            titulo: 'Tope por vehículo',
+            valor:
+                '${vehiculo.topeLitrosSemanal.toStringAsFixed(0)} L / semana',
+          ),
           const SizedBox(height: 10),
           const _TarjetaRegla(
             titulo: 'Comentario obligatorio',
@@ -472,24 +731,40 @@ class _PanelReglas extends StatelessWidget {
           const SizedBox(height: 10),
           _TarjetaRegla(
             titulo: 'Límite semanal \$',
-            valor: fondoActual == null ? 'Sin capturar todavía' : formatoMoneda.format(total),
+            valor: fondoActual == null
+                ? 'Sin capturar todavía'
+                : formatoMoneda.format(total),
           ),
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [AppColors.primary, Color(0xFF0A3FB0)]),
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, Color(0xFF0A3FB0)],
+              ),
               borderRadius: BorderRadius.circular(AppRadii.card),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('PRESUPUESTO DE LA SEMANA',
-                    style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w800, fontSize: 11)),
+                const Text(
+                  'PRESUPUESTO DE LA SEMANA',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
-                  fondoActual == null ? 'Sin datos de fondo semanal' : '${(avance * 100).toStringAsFixed(0)}% ejercido',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
+                  fondoActual == null
+                      ? 'Sin datos de fondo semanal'
+                      : '${(avance * 100).toStringAsFixed(0)}% ejercido',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ClipRRect(
@@ -502,8 +777,10 @@ class _PanelReglas extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text('${formatoMoneda.format(ejercido)} de ${formatoMoneda.format(total)}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(
+                  '${formatoMoneda.format(ejercido)} de ${formatoMoneda.format(total)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -532,9 +809,18 @@ class _TarjetaRegla extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(titulo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          Text(
+            titulo,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
           const SizedBox(height: 4),
-          Text(valor, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+          Text(
+            valor,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12.5,
+            ),
+          ),
         ],
       ),
     );

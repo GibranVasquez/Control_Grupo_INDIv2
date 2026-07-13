@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../dev/datos_demo.dart';
+import '../../state/providers.dart';
 import '../../state/session_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/widgets.dart';
 import '../reportes/resumen_financiero_page.dart';
 import 'cierre_semanal_page.dart';
@@ -21,7 +22,10 @@ class _FinanzasHomePageState extends ConsumerState<FinanzasHomePage> {
 
   static const _items = [
     AdminNavItem(icono: Icons.bar_chart_rounded, etiqueta: 'Reportes'),
-    AdminNavItem(icono: Icons.event_available_rounded, etiqueta: 'Cierre semanal'),
+    AdminNavItem(
+      icono: Icons.event_available_rounded,
+      etiqueta: 'Cierre semanal',
+    ),
     AdminNavItem(icono: Icons.local_gas_station_rounded, etiqueta: 'Precios'),
     AdminNavItem(icono: Icons.people_rounded, etiqueta: 'Usuarios'),
   ];
@@ -35,15 +39,35 @@ class _FinanzasHomePageState extends ConsumerState<FinanzasHomePage> {
       onSeleccionar: (i) => setState(() => _seleccion = i),
       nombreUsuario: perfil?.nombreCompleto ?? '',
       child: switch (_seleccion) {
-        0 => ResumenFinancieroPage(
-            filas: DatosDemo.resumenFinancieroObra,
-            nombreProveedor: 'Todas las obras',
-            consolidado: true,
-          ),
+        0 => const _ReportesConsolidadoTab(),
         1 => const CierreSemanalPage(),
         2 => const PreciosCombustiblePage(),
         _ => const UsuariosPage(),
       },
+    );
+  }
+}
+
+class _ReportesConsolidadoTab extends ConsumerWidget {
+  const _ReportesConsolidadoTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resumenAsync = ref.watch(resumenFinancieroConsolidadoProvider);
+
+    return resumenAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(
+        child: Text(
+          'No se pudo cargar el resumen financiero: $error',
+          style: const TextStyle(color: AppColors.error),
+        ),
+      ),
+      data: (filas) => ResumenFinancieroPage(
+        filas: filas,
+        nombreProveedor: 'Todas las obras',
+        consolidado: true,
+      ),
     );
   }
 }

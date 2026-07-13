@@ -16,13 +16,6 @@ import 'package:powersync/powersync.dart';
 /// (ver services/api/api_semana_operativa_repository.dart y
 /// services/api/api_reportes_repository.dart).
 ///
-/// Nota de seguridad: `perfiles` se sincroniza con `SELECT *`, lo que incluye
-/// `password_hash` en el JSON replicado aunque esa columna no se declare
-/// aquí (el hash bcrypt queda igual en el archivo SQLite local, solo no es
-/// una columna consultable). Pendiente de corregir en
-/// backend/powersync/config/sync-config.yaml (excluir esa columna del
-/// `SELECT` de ese bucket) — no es algo que se pueda resolver del lado
-/// Flutter.
 final Schema powerSyncSchema = Schema([
   Table('obras', [
     Column.text('nombre'),

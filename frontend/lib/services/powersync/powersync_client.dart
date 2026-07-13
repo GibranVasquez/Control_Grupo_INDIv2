@@ -205,7 +205,23 @@ class PowerSyncClient {
 
   /// Se llama justo después de un login exitoso (el JWT ya está guardado en
   /// TokenStorage en ese momento, así que fetchCredentials lo encuentra).
-  Future<void> conectar() => database.connect(connector: _connector);
+  ///
+  /// Espera a que termine la primera sincronización antes de regresar: sin
+  /// esto, la primera pantalla del rol (ej. ChoferHomePage leyendo su
+  /// vehículo con vehiculoPorIdProvider) puede ejecutar su consulta local
+  /// contra el catálogo de PowerSync antes de que la fila exista todavía,
+  /// y `PowerSyncVehiculoRepository.obtenerPorId` truena con
+  /// "no encontrado en el catálogo local" en vez de mostrar la pantalla.
+  /// El login ya requirió red (POST /auth/login) para llegar hasta aquí, así
+  /// que esperar la primera sync es razonable; el timeout evita colgar el
+  /// login indefinidamente si la red se cae justo después.
+  Future<void> conectar() async {
+    await database.connect(connector: _connector);
+    await database.waitForFirstSync().timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {},
+        );
+  }
 
   /// Al cerrar sesión: corta el stream y borra los datos sincronizados del
   /// disco. Necesario para no dejar solicitudes/cargas/catálogos de un

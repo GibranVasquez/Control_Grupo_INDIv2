@@ -8,6 +8,12 @@ abstract class SolicitudAutorizacionRepository {
 
   Future<List<SolicitudAutorizacion>> listarPendientesPorObra(String obraId);
 
+  /// Todas las solicitudes de la obra (cualquier estado), más recientes
+  /// primero, actualizándose en tiempo real conforme llegan nuevas
+  /// solicitudes o cambia su estado (de este dispositivo o de cualquier
+  /// otro, vía sincronización de PowerSync).
+  Stream<List<SolicitudAutorizacion>> watchTodasPorObra(String obraId);
+
   /// Resuelve una solicitud como autorizada (total o parcial) o rechazada.
   ///
   /// [comentario] es obligatorio en el llamador cuando se rechaza o se autoriza parcial

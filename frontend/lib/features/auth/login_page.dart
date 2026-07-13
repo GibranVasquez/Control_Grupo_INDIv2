@@ -1,8 +1,7 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../router/app_router.dart';
 import '../../state/auth_controller.dart';
 import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
@@ -34,27 +33,38 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final password = _passwordCtrl.text;
     if (numeroEmpleado.isEmpty || password.isEmpty) return;
 
-    await ref.read(authControllerProvider.notifier).iniciarSesion(
-          numeroEmpleado: numeroEmpleado,
-          password: password,
-        );
+    await ref
+        .read(authControllerProvider.notifier)
+        .iniciarSesion(numeroEmpleado: numeroEmpleado, password: password);
   }
 
   Future<void> _entrarConBiometria() async {
-    final ok = await ref.read(authControllerProvider.notifier).iniciarSesionConBiometria();
+    final ok = await ref
+        .read(authControllerProvider.notifier)
+        .iniciarSesionConBiometria();
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No pudimos validar tu huella/Face ID. Ingresa con tu usuario y contraseña.')),
+        const SnackBar(
+          content: Text(
+            'No pudimos validar tu huella/Face ID. Ingresa con tu usuario y contraseña.',
+          ),
+        ),
       );
     }
   }
-
-  void _irARegistro() => context.push(AppRoutes.registro);
 
   void _mostrarProximamente() {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('Próximamente.')));
+  }
+
+  /// Atajo de acceso administrativo: entra directo con la cuenta de prueba
+  /// de administrativo (EMP-2001), sin teclear número de empleado/contraseña.
+  Future<void> _entrarComoAdministrador() async {
+    await ref
+        .read(authControllerProvider.notifier)
+        .iniciarSesion(numeroEmpleado: 'EMP-2001', password: '1234');
   }
 
   @override
@@ -70,7 +80,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ..showSnackBar(
             SnackBar(
               backgroundColor: AppColors.error,
-              content: const Text('No pudimos iniciar sesión. Revisa tus datos e intenta de nuevo.'),
+              content: const Text(
+                'No pudimos iniciar sesión. Revisa tus datos e intenta de nuevo.',
+              ),
             ),
           );
       }
@@ -84,7 +96,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -110,13 +125,16 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           _CampoPassword(
                             controller: _passwordCtrl,
                             verPassword: _verPassword,
-                            onToggleVer: () => setState(() => _verPassword = !_verPassword),
+                            onToggleVer: () =>
+                                setState(() => _verPassword = !_verPassword),
                           ),
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: cargando ? null : _mostrarProximamente,
-                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                              ),
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',
                                 style: TextStyle(
@@ -128,28 +146,36 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          _BotonIngresar(cargando: cargando, onPressed: _entrar),
-                          const SizedBox(height: 16),
-                          Center(
-                            child: TextButton(
-                              onPressed: cargando ? null : _irARegistro,
-                              child: const Text(
-                                '¿No tienes cuenta? Regístrate',
-                                style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
-                              ),
-                            ),
+                          _BotonIngresar(
+                            cargando: cargando,
+                            onPressed: _entrar,
                           ),
-                          const SizedBox(height: 6),
-                          _BotonBiometria(cargando: cargando, onPressed: _entrarConBiometria),
-                          const SizedBox(height: 22),
-                          _DivisorConTexto(texto: 'o'),
-                          const SizedBox(height: 22),
-                          _BotonSso(habilitado: !cargando, onPressed: _mostrarProximamente),
+                          const SizedBox(height: 16),
+                          _BotonBiometria(
+                            cargando: cargando,
+                            onPressed: _entrarConBiometria,
+                          ),
+                          // Atajo solo para desarrollo/pruebas: nunca debe
+                          // llegar a un build de release ni a las tiendas —
+                          // kDebugMode lo excluye por completo del binario
+                          // compilado, no solo lo oculta visualmente.
+                          if (kDebugMode) ...[
+                            const SizedBox(height: 22),
+                            _DivisorConTexto(texto: 'o'),
+                            const SizedBox(height: 22),
+                            _BotonAdmin(
+                              habilitado: !cargando,
+                              onPressed: _entrarComoAdministrador,
+                            ),
+                          ],
                           const SizedBox(height: 22),
                           const Center(
                             child: Text(
                               'Grupo INDI © 2026 · v1.0',
-                              style: TextStyle(color: AppColors.textTertiary, fontSize: 12.5),
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 12.5,
+                              ),
                             ),
                           ),
                         ],
@@ -277,7 +303,10 @@ class _CampoPassword extends StatelessWidget {
         onPressed: onToggleVer,
         child: Text(
           verPassword ? 'Ocultar' : 'Ver',
-          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -305,7 +334,10 @@ class _BotonBiometria extends ConsumerWidget {
             icon: const Icon(Icons.fingerprint, color: AppColors.primary),
             label: const Text(
               'Ingresar con Huella/Face ID',
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         );
@@ -335,7 +367,10 @@ class _BotonIngresar extends StatelessWidget {
             ? const SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Colors.white,
+                ),
               )
             : const Text('Ingresar'),
       ),
@@ -355,7 +390,10 @@ class _DivisorConTexto extends StatelessWidget {
         const Expanded(child: Divider(color: AppColors.borderInput)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(texto, style: const TextStyle(color: AppColors.textTertiary)),
+          child: Text(
+            texto,
+            style: const TextStyle(color: AppColors.textTertiary),
+          ),
         ),
         const Expanded(child: Divider(color: AppColors.borderInput)),
       ],
@@ -363,8 +401,8 @@ class _DivisorConTexto extends StatelessWidget {
   }
 }
 
-class _BotonSso extends StatelessWidget {
-  const _BotonSso({required this.habilitado, required this.onPressed});
+class _BotonAdmin extends StatelessWidget {
+  const _BotonAdmin({required this.habilitado, required this.onPressed});
 
   final bool habilitado;
   final VoidCallback onPressed;
@@ -376,20 +414,39 @@ class _BotonSso extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Image.asset('assets/images/indi_logo.jpg', width: 22, height: 22),
+          const Icon(
+            Icons.admin_panel_settings_rounded,
+            color: AppColors.navy,
+            size: 22,
           ),
           const SizedBox(width: 10),
           const Flexible(
             child: Text(
-              'Acceso corporativo INDI',
+              'Acceso de administrador',
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
               style: TextStyle(
                 color: AppColors.navy,
                 fontWeight: FontWeight.w800,
                 fontSize: 15.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.warningBg,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppColors.warningBorder),
+            ),
+            child: const Text(
+              'DEV',
+              style: TextStyle(
+                color: AppColors.warningTextStrong,
+                fontWeight: FontWeight.w800,
+                fontSize: 10,
+                letterSpacing: 0.5,
               ),
             ),
           ),
