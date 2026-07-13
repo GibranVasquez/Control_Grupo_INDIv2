@@ -40,7 +40,7 @@ final obrasCatalogoProvider = FutureProvider<List<Obra>>((ref) async {
   return obras;
 });
 
-/// Catálogo de ingenieros elegibles en el registro (`register_page.dart`). Mismo patrón
+/// Catálogo de ingenieros elegibles en el registro (`registro_chofer_page.dart`). Mismo patrón
 /// cache-first que [obrasCatalogoProvider].
 final ingenierosCatalogoProvider = FutureProvider<List<Perfil>>((ref) async {
   final cache = ref.watch(catalogoCacheServiceProvider);

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/administrativo/administrativo_home_page.dart';
 import '../features/auth/login_page.dart';
+import '../features/auth/registro_chofer_page.dart';
 import '../features/chofer/chofer_home_page.dart';
 import '../features/chofer/comprobar_carga_page.dart';
 import '../features/chofer/respuesta_autorizacion_page.dart';
@@ -16,6 +17,7 @@ class AppRoutes {
   AppRoutes._();
 
   static const login = '/login';
+  static const registroChofer = '/registro-chofer';
   static const chofer = '/chofer';
   static const solicitarLitros = '/chofer/solicitar';
   static const respuestaAutorizacion = '/chofer/respuesta';
@@ -33,6 +35,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.registroChofer,
+        builder: (context, state) => const RegistroChoferPage(),
       ),
       GoRoute(
         path: AppRoutes.chofer,
@@ -74,9 +80,10 @@ String? _redirigirSegunSesion(Ref ref, GoRouterState state) {
   final perfil = ref.read(sesionProvider);
   final ruta = state.matchedLocation;
   final enLogin = ruta == AppRoutes.login;
+  final enRegistro = ruta == AppRoutes.registroChofer;
 
   if (perfil == null) {
-    return enLogin ? null : AppRoutes.login;
+    return (enLogin || enRegistro) ? null : AppRoutes.login;
   }
 
   final rutaDeSuRol = _rutaHomePorRol(perfil.rol);
