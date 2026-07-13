@@ -1,8 +1,9 @@
+import ExcelJS from "exceljs";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { asegurarAccesoObra } from "../utils/accesoObra";
 import { enteroDesdeDecimal, numeroDesdeDecimal } from "../utils/decimal";
-import { esFechaISOValida } from "../utils/validacion";
+import { esFechaISOValida, esUuidValido } from "../utils/validacion";
 import { AuthTokenPayload } from "../types/auth";
 
 // ---------------------------------------------------------------------
@@ -34,7 +35,8 @@ export async function concentradoCargas(
   user: AuthTokenPayload,
   obraId: string,
   desde?: unknown,
-  hasta?: unknown
+  hasta?: unknown,
+  vehiculoId?: unknown
 ): Promise<FilaConcentradoCargas[]> {
   asegurarAccesoObra(user, obraId);
 
@@ -44,6 +46,9 @@ export async function concentradoCargas(
   if (hasta !== undefined && !esFechaISOValida(hasta)) {
     throw new AppError(400, "hasta debe ser una fecha válida.");
   }
+  if (vehiculoId !== undefined && !esUuidValido(vehiculoId)) {
+    throw new AppError(400, "vehiculo_id debe ser un UUID válido.");
+  }
 
   // La vista `vista_concentrado_cargas` no expone obra_id (solo el nombre de
   // la obra), así que para filtrar de forma segura por obra se consulta
@@ -51,6 +56,7 @@ export async function concentradoCargas(
   const cargas = await prisma.carga.findMany({
     where: {
       obraId,
+      ...(vehiculoId ? { vehiculoId: vehiculoId as string } : {}),
       fechaCarga: {
         gte: desde ? new Date(desde as string) : undefined,
         lte: hasta ? new Date(hasta as string) : undefined,
@@ -82,6 +88,62 @@ export async function concentradoCargas(
     foto_ticket_url: c.fotoTicketUrl,
     alerta_rendimiento: c.alertaRendimiento,
   }));
+}
+
+/** Arma el mismo concentrado de `concentradoCargas` como libro de Excel
+ * (mismas columnas que ya muestra la pantalla de Concentrado en el
+ * frontend), para el endpoint de descarga `/reportes/concentrado-cargas/exportar`. */
+export function generarExcelConcentradoCargas(filas: FilaConcentradoCargas[]): ExcelJS.Workbook {
+  const workbook = new ExcelJS.Workbook();
+  const hoja = workbook.addWorksheet("Concentrado de cargas");
+
+  hoja.columns = [
+    { header: "Fecha", key: "fecha", width: 12 },
+    { header: "Responsable", key: "responsable", width: 26 },
+    { header: "Vehículo", key: "vehiculo", width: 22 },
+    { header: "Placas", key: "placa", width: 12 },
+    { header: "Km/Horas", key: "kmHoras", width: 12 },
+    { header: "Litros", key: "litros", width: 10 },
+    { header: "Rendimiento", key: "rendimiento", width: 14 },
+    { header: "$/L", key: "precioPorLitro", width: 10 },
+    { header: "Combustible", key: "tipoCombustible", width: 12 },
+    { header: "Importe", key: "importe", width: 14 },
+    { header: "Ticket", key: "ticket", width: 12 },
+    { header: "Alerta", key: "alerta", width: 12 },
+  ];
+  hoja.getRow(1).font = { bold: true };
+
+  let totalLitros = 0;
+  let totalImporte = 0;
+  for (const fila of filas) {
+    const esMaquinaria = fila.tipo_unidad === "maquinaria";
+    hoja.addRow({
+      fecha: fila.fecha.toISOString().slice(0, 10),
+      responsable: fila.responsable,
+      vehiculo: fila.vehiculo_descripcion,
+      placa: fila.placa,
+      kmHoras: esMaquinaria ? fila.horas_actual : fila.km,
+      litros: fila.litros,
+      rendimiento: esMaquinaria ? fila.rendimiento_l_h : fila.rendimiento_km_l,
+      precioPorLitro: fila.precio_por_litro,
+      tipoCombustible: fila.tipo_combustible,
+      importe: fila.importe,
+      ticket: fila.foto_ticket_url ? "Completo" : "Pendiente",
+      alerta: fila.alerta_rendimiento ?? "",
+    });
+    totalLitros += fila.litros;
+    totalImporte += fila.importe;
+  }
+
+  const filaTotales = hoja.addRow({ responsable: "TOTAL", litros: totalLitros, importe: totalImporte });
+  filaTotales.font = { bold: true };
+
+  hoja.getColumn("litros").numFmt = "0.00";
+  hoja.getColumn("rendimiento").numFmt = "0.00";
+  hoja.getColumn("precioPorLitro").numFmt = "0.00";
+  hoja.getColumn("importe").numFmt = "$#,##0.00";
+
+  return workbook;
 }
 
 export interface FilaResumenFinanciero {

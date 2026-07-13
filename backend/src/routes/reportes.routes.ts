@@ -15,6 +15,12 @@ reportesRouter.get(
 );
 
 reportesRouter.get(
+  "/concentrado-cargas/exportar",
+  permitirRoles("administrativo", "finanzas"),
+  reportesController.exportarConcentradoCargasExcel
+);
+
+reportesRouter.get(
   "/resumen-financiero-semanal",
   permitirRoles("administrativo", "finanzas"),
   reportesController.resumenFinancieroSemanal
