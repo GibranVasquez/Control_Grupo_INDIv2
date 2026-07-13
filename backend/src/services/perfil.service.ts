@@ -95,11 +95,12 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Pr
   }
   if (datos.vehiculo_id) {
     const vehiculo = await prisma.vehiculo.findUnique({ where: { id: datos.vehiculo_id as string } });
-    if (!vehiculo) {
-      throw new AppError(400, "vehiculo_id no corresponde a un vehículo existente.");
-    }
-    if (vehiculo.obraId !== datos.obra_id) {
-      throw new AppError(400, "vehiculo_id no pertenece a la obra indicada.");
+    // Un solo mensaje para "no existe" y "existe pero es de otra obra": mismo
+    // criterio que accesoObra.ts (no confirmar la existencia de un recurso
+    // fuera del alcance del usuario) — antes se distinguían los dos casos,
+    // lo que permitía a un administrativo enumerar vehículos de otras obras.
+    if (!vehiculo || vehiculo.obraId !== datos.obra_id) {
+      throw new AppError(400, "vehiculo_id no corresponde a un vehículo válido para esta obra.");
     }
   }
 
@@ -120,7 +121,12 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Pr
     return serializarPerfil(perfil);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new AppError(409, `Ya existe un usuario con el número de empleado "${datos.numero_empleado}".`);
+      // Mensaje genérico, sin eco del numero_empleado ni distinción de en qué
+      // obra vive el duplicado: numeroEmpleado es único a nivel global, así
+      // que confirmar la coincidencia exacta es un oráculo para enumerar
+      // personal de otras obras (mismo criterio que accesoObra.ts: no
+      // revelar la existencia de un recurso fuera del alcance del usuario).
+      throw new AppError(409, "No se pudo completar el alta con los datos proporcionados.");
     }
     throw error;
   }
