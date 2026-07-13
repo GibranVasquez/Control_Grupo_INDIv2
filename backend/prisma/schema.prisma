@@ -299,7 +299,7 @@ model SolicitudAutorizacion {
 
 model Carga {
   id                 String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  solicitudId        String?                @map("solicitud_id") @db.Uuid
+  solicitudId        String                 @map("solicitud_id") @db.Uuid
   choferId           String                 @map("chofer_id") @db.Uuid
   vehiculoId         String                 @map("vehiculo_id") @db.Uuid
   obraId             String                 @map("obra_id") @db.Uuid
@@ -320,7 +320,7 @@ model Carga {
   creadoOffline      Boolean                @default(false) @map("creado_offline")
   sincronizadoEn     DateTime?              @map("sincronizado_en") @db.Timestamptz(6)
 
-  solicitud SolicitudAutorizacion? @relation(fields: [solicitudId], references: [id])
+  solicitud SolicitudAutorizacion  @relation(fields: [solicitudId], references: [id])
   chofer    Perfil                 @relation(fields: [choferId], references: [id])
   vehiculo  Vehiculo               @relation(fields: [vehiculoId], references: [id])
   obra      Obra                   @relation(fields: [obraId], references: [id])

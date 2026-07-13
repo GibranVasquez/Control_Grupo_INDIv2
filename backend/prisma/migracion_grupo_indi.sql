@@ -189,9 +189,13 @@ create index idx_solicitudes_chofer on solicitudes_autorizacion(chofer_id);
 -- ---------------------------------------------------------------------
 -- 8. CARGAS (registro real de combustible cargado)
 -- ---------------------------------------------------------------------
+-- Nota de mantenimiento (2026-07-13): solicitud_id se volvió NOT NULL
+-- (antes permitía null). crear() en carga.service.ts ya exigía solicitud_id
+-- en todos los casos; no había ninguna fila con valor null en Railway al
+-- aplicar el cambio (ALTER TABLE cargas ALTER COLUMN solicitud_id SET NOT NULL).
 create table cargas (
   id uuid primary key default uuid_generate_v4(),
-  solicitud_id uuid references solicitudes_autorizacion(id),
+  solicitud_id uuid not null references solicitudes_autorizacion(id),
   chofer_id uuid not null references perfiles(id),
   vehiculo_id uuid not null references vehiculos(id),
   obra_id uuid not null references obras(id),
