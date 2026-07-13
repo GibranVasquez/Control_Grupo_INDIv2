@@ -14,5 +14,20 @@ abstract class PerfilRepository {
 
   Future<List<Perfil>> listarPorObra(String obraId);
 
+  /// Todos los perfiles replicados localmente (solo finanzas los tiene todos —
+  /// ver sync-config.yaml bucket `finanzas_global` — administrativo solo ve los
+  /// de su propia obra vía [listarPorObra]).
+  Future<List<Perfil>> listarTodos();
+
   Future<void> actualizarActivo(String perfilId, bool activo);
+
+  /// Alta de un chofer nuevo (`POST /perfiles`). Solo administrativo/finanzas.
+  Future<Perfil> crear({
+    required String nombreCompleto,
+    required String numeroEmpleado,
+    required String password,
+    required String obraId,
+    String? vehiculoId,
+    String? area,
+  });
 }

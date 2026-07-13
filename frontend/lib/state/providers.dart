@@ -31,13 +31,17 @@ final powerSyncDatabaseProvider = Provider<PowerSyncDatabase>((ref) {
   );
 });
 
-final tokenStorageProvider = Provider<TokenStorage>((ref) => const TokenStorage());
+final tokenStorageProvider = Provider<TokenStorage>(
+  (ref) => const TokenStorage(),
+);
 
 /// Ajeno a Supabase: guarda usuario/password en claro (ver credenciales_storage.dart)
 /// para poder repetir iniciarSesion() completo tras un desbloqueo biométrico exitoso,
 /// tanto para el flujo demo (usuariosRegistradosProvider) como para el real contra la
 /// API. No se reemplaza por TokenStorage porque el flujo demo nunca emite un JWT.
-final credencialesStorageProvider = Provider<CredencialesStorage>((ref) => const CredencialesStorage());
+final credencialesStorageProvider = Provider<CredencialesStorage>(
+  (ref) => const CredencialesStorage(),
+);
 
 /// Ante un 401 de la API, se limpia la sesión en memoria: app_router.dart ya
 /// redirige solo a /login cuando sesionProvider queda en null (ver
@@ -77,19 +81,25 @@ final vehiculoRepositoryProvider = Provider<VehiculoRepository>((ref) {
 });
 
 final obraRepositoryProvider = Provider<ObraRepository>((ref) {
-  return PowerSyncObraRepository(database: ref.watch(powerSyncDatabaseProvider));
-});
-
-final precioCombustibleRepositoryProvider = Provider<PrecioCombustibleRepository>((ref) {
-  return PowerSyncPrecioCombustibleRepository(
+  return PowerSyncObraRepository(
     database: ref.watch(powerSyncDatabaseProvider),
-    apiClient: ref.watch(apiClientProvider),
   );
 });
 
-final solicitudAutorizacionRepositoryProvider = Provider<SolicitudAutorizacionRepository>((ref) {
-  return PowerSyncSolicitudAutorizacionRepository(database: ref.watch(powerSyncDatabaseProvider));
-});
+final precioCombustibleRepositoryProvider =
+    Provider<PrecioCombustibleRepository>((ref) {
+      return PowerSyncPrecioCombustibleRepository(
+        database: ref.watch(powerSyncDatabaseProvider),
+        apiClient: ref.watch(apiClientProvider),
+      );
+    });
+
+final solicitudAutorizacionRepositoryProvider =
+    Provider<SolicitudAutorizacionRepository>((ref) {
+      return PowerSyncSolicitudAutorizacionRepository(
+        database: ref.watch(powerSyncDatabaseProvider),
+      );
+    });
 
 final cargaRepositoryProvider = Provider<CargaRepository>((ref) {
   return PowerSyncCargaRepository(
@@ -98,7 +108,9 @@ final cargaRepositoryProvider = Provider<CargaRepository>((ref) {
   );
 });
 
-final semanaOperativaRepositoryProvider = Provider<SemanaOperativaRepository>((ref) {
+final semanaOperativaRepositoryProvider = Provider<SemanaOperativaRepository>((
+  ref,
+) {
   return ApiSemanaOperativaRepository(apiClient: ref.watch(apiClientProvider));
 });
 
@@ -106,7 +118,9 @@ final reportesRepositoryProvider = Provider<ReportesRepository>((ref) {
   return ApiReportesRepository(apiClient: ref.watch(apiClientProvider));
 });
 
-final biometriaServiceProvider = Provider<BiometriaService>((ref) => BiometriaService());
+final biometriaServiceProvider = Provider<BiometriaService>(
+  (ref) => BiometriaService(),
+);
 
 // ---------------------------------------------------------------------
 // Providers de lectura por parámetro (family): envuelven un método de
@@ -117,11 +131,17 @@ final biometriaServiceProvider = Provider<BiometriaService>((ref) => BiometriaSe
 // patrón que invalidarCatalogos() en catalogos_provider.dart.
 // ---------------------------------------------------------------------
 
-final vehiculoPorIdProvider = FutureProvider.family<Vehiculo, String>((ref, vehiculoId) {
+final vehiculoPorIdProvider = FutureProvider.family<Vehiculo, String>((
+  ref,
+  vehiculoId,
+) {
   return ref.watch(vehiculoRepositoryProvider).obtenerPorId(vehiculoId);
 });
 
-final vehiculosPorObraProvider = FutureProvider.family<List<Vehiculo>, String>((ref, obraId) {
+final vehiculosPorObraProvider = FutureProvider.family<List<Vehiculo>, String>((
+  ref,
+  obraId,
+) {
   return ref.watch(vehiculoRepositoryProvider).listarPorObra(obraId);
 });
 
@@ -129,56 +149,113 @@ final obraPorIdProvider = FutureProvider.family<Obra, String>((ref, obraId) {
   return ref.watch(obraRepositoryProvider).obtenerPorId(obraId);
 });
 
-final perfilesPorObraProvider = FutureProvider.family<List<Perfil>, String>((ref, obraId) {
+final obrasTodasProvider = FutureProvider<List<Obra>>((ref) {
+  return ref.watch(obraRepositoryProvider).listarTodas();
+});
+
+final perfilesPorObraProvider = FutureProvider.family<List<Perfil>, String>((
+  ref,
+  obraId,
+) {
   return ref.watch(perfilRepositoryProvider).listarPorObra(obraId);
 });
 
-final precioVigenteProvider = FutureProvider.family<PrecioCombustible, TipoCombustible>((ref, tipo) {
-  return ref.watch(precioCombustibleRepositoryProvider).obtenerVigente(tipo);
+/// Todos los perfiles (choferes/administrativo/finanzas) — pantalla de Usuarios (finanzas).
+final perfilesTodosProvider = FutureProvider<List<Perfil>>((ref) {
+  return ref.watch(perfilRepositoryProvider).listarTodos();
 });
 
-final solicitudesPendientesObraProvider = FutureProvider.family<List<SolicitudAutorizacion>, String>((
-  ref,
-  obraId,
-) {
-  return ref.watch(solicitudAutorizacionRepositoryProvider).listarPendientesPorObra(obraId);
-});
+final precioVigenteProvider =
+    FutureProvider.family<PrecioCombustible, TipoCombustible>((ref, tipo) {
+      return ref
+          .watch(precioCombustibleRepositoryProvider)
+          .obtenerVigente(tipo);
+    });
 
-final solicitudesPorChoferProvider = FutureProvider.family<List<SolicitudAutorizacion>, String>((
-  ref,
-  choferId,
-) {
-  return ref.watch(solicitudAutorizacionRepositoryProvider).listarPorChofer(choferId);
-});
+final precioHistoricoProvider =
+    FutureProvider.family<List<PrecioCombustible>, TipoCombustible>((
+      ref,
+      tipo,
+    ) {
+      return ref
+          .watch(precioCombustibleRepositoryProvider)
+          .listarHistorico(tipo);
+    });
 
-final ultimaCargaPorVehiculoProvider = FutureProvider.family<Carga?, String>((ref, vehiculoId) {
-  return ref.watch(cargaRepositoryProvider).obtenerUltimaPorVehiculo(vehiculoId);
-});
+final solicitudesPendientesObraProvider =
+    FutureProvider.family<List<SolicitudAutorizacion>, String>((ref, obraId) {
+      return ref
+          .watch(solicitudAutorizacionRepositoryProvider)
+          .listarPendientesPorObra(obraId);
+    });
 
-final consumoSemanalVehiculoProvider = FutureProvider.family<VistaConsumoVehiculoSemanal, String>((
+/// Todas las solicitudes de la obra (cualquier estado) en tiempo real: la
+/// bandeja se actualiza sola cuando llega una nueva o cambia de estado, sin
+/// invalidar nada a mano — ver PowerSyncSolicitudAutorizacionRepository.watchTodasPorObra.
+final solicitudesTodasObraProvider =
+    StreamProvider.family<List<SolicitudAutorizacion>, String>((ref, obraId) {
+      return ref
+          .watch(solicitudAutorizacionRepositoryProvider)
+          .watchTodasPorObra(obraId);
+    });
+
+final solicitudesPorChoferProvider =
+    FutureProvider.family<List<SolicitudAutorizacion>, String>((ref, choferId) {
+      return ref
+          .watch(solicitudAutorizacionRepositoryProvider)
+          .listarPorChofer(choferId);
+    });
+
+final ultimaCargaPorVehiculoProvider = FutureProvider.family<Carga?, String>((
   ref,
   vehiculoId,
 ) {
-  return ref.watch(reportesRepositoryProvider).consumoSemanalDeVehiculo(vehiculoId);
+  return ref
+      .watch(cargaRepositoryProvider)
+      .obtenerUltimaPorVehiculo(vehiculoId);
 });
 
-final fondoSemanalObraProvider = FutureProvider.family<List<FondoSemanal>, String>((ref, obraId) {
-  return ref.watch(reportesRepositoryProvider).fondoSemanalPorObra(obraId: obraId);
-});
+final consumoSemanalVehiculoProvider =
+    FutureProvider.family<VistaConsumoVehiculoSemanal, String>((
+      ref,
+      vehiculoId,
+    ) {
+      return ref
+          .watch(reportesRepositoryProvider)
+          .consumoSemanalDeVehiculo(vehiculoId);
+    });
 
-final concentradoCargasObraProvider = FutureProvider.family<List<VistaConcentradoCargas>, String>((
-  ref,
-  obraId,
-) {
-  return ref.watch(reportesRepositoryProvider).concentradoCargas(obraId: obraId);
-});
+final fondoSemanalObraProvider =
+    FutureProvider.family<List<FondoSemanal>, String>((ref, obraId) {
+      return ref
+          .watch(reportesRepositoryProvider)
+          .fondoSemanalPorObra(obraId: obraId);
+    });
 
-final resumenFinancieroSemanalProvider = FutureProvider.family<List<VistaResumenFinancieroSemanal>, String>((
-  ref,
-  obraId,
-) {
-  return ref.watch(reportesRepositoryProvider).resumenFinancieroSemanal(obraId: obraId);
-});
+final concentradoCargasObraProvider =
+    FutureProvider.family<List<VistaConcentradoCargas>, String>((ref, obraId) {
+      return ref
+          .watch(reportesRepositoryProvider)
+          .concentradoCargas(obraId: obraId);
+    });
+
+final resumenFinancieroSemanalProvider =
+    FutureProvider.family<List<VistaResumenFinancieroSemanal>, String>((
+      ref,
+      obraId,
+    ) {
+      return ref
+          .watch(reportesRepositoryProvider)
+          .resumenFinancieroSemanal(obraId: obraId);
+    });
+
+/// Resumen financiero de TODAS las obras (rol finanzas, sin filtrar por obraId).
+final resumenFinancieroConsolidadoProvider =
+    FutureProvider<List<VistaResumenFinancieroSemanal>>((ref) {
+      return ref
+          .watch(reportesRepositoryProvider)
+          .resumenFinancieroConsolidado();
+    });
 
 final colaFotosTicketServiceProvider = Provider<ColaFotosTicketService>((ref) {
   return ColaFotosTicketService(ref.watch(sharedPreferencesProvider));
@@ -214,10 +291,14 @@ final colaFotosTicketWatcherProvider = Provider<void>((ref) {
         var subida = false;
         for (var intento = 0; intento < 3 && !subida; intento++) {
           try {
-            await cargaRepositorio.subirFotoTicket(pendiente.cargaId, pendiente.rutaLocal);
+            await cargaRepositorio.subirFotoTicket(
+              pendiente.cargaId,
+              pendiente.rutaLocal,
+            );
             subida = true;
           } catch (_) {
-            if (intento < 2) await Future.delayed(Duration(milliseconds: 800 * (intento + 1)));
+            if (intento < 2)
+              await Future.delayed(Duration(milliseconds: 800 * (intento + 1)));
           }
         }
         if (subida) await cola.quitar(pendiente.cargaId);

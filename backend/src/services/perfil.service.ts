@@ -1,7 +1,10 @@
+import bcrypt from "bcrypt";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { asegurarAccesoObra } from "../utils/accesoObra";
 import { serializarPerfil, PerfilPublico } from "../utils/perfilSerializer";
+import { esStringNoVacia } from "../utils/validacion";
 import { AuthTokenPayload } from "../types/auth";
 
 /**
@@ -45,4 +48,80 @@ export async function actualizarActivo(
     data: { activo },
   });
   return serializarPerfil(actualizado);
+}
+
+const RONDAS_BCRYPT = 10;
+
+export interface DatosCrearPerfil {
+  nombre_completo: unknown;
+  numero_empleado: unknown;
+  password: unknown;
+  obra_id: unknown;
+  vehiculo_id?: unknown;
+  area?: unknown;
+}
+
+/**
+ * Alta de un chofer (única forma en la que un administrativo/finanzas puede dar de alta
+ * un usuario, ver perfil.routes.ts): administrativo/finanzas ya tienen su propio usuario
+ * y contraseña, dados de alta directo en la base de datos, no por este endpoint.
+ */
+export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Promise<PerfilPublico> {
+  if (!esStringNoVacia(datos.nombre_completo, 200)) {
+    throw new AppError(400, "nombre_completo es requerido y debe ser un texto válido.");
+  }
+  if (!esStringNoVacia(datos.numero_empleado, 100)) {
+    throw new AppError(400, "numero_empleado es requerido y debe ser un texto válido.");
+  }
+  if (!esStringNoVacia(datos.password, 200) || (datos.password as string).length < 4) {
+    throw new AppError(400, "password es requerido y debe tener al menos 4 caracteres.");
+  }
+  if (!esStringNoVacia(datos.obra_id, 100)) {
+    throw new AppError(400, "obra_id es requerido y debe ser un texto válido.");
+  }
+  if (datos.vehiculo_id !== undefined && datos.vehiculo_id !== null && !esStringNoVacia(datos.vehiculo_id, 100)) {
+    throw new AppError(400, "vehiculo_id debe ser un texto válido.");
+  }
+  if (datos.area !== undefined && datos.area !== null && !esStringNoVacia(datos.area, 100)) {
+    throw new AppError(400, "area debe ser un texto válido.");
+  }
+
+  // administrativo solo puede dar de alta choferes en su propia obra; finanzas en cualquiera.
+  asegurarAccesoObra(user, datos.obra_id as string);
+
+  const obra = await prisma.obra.findUnique({ where: { id: datos.obra_id as string } });
+  if (!obra) {
+    throw new AppError(400, "obra_id no corresponde a una obra existente.");
+  }
+  if (datos.vehiculo_id) {
+    const vehiculo = await prisma.vehiculo.findUnique({ where: { id: datos.vehiculo_id as string } });
+    if (!vehiculo) {
+      throw new AppError(400, "vehiculo_id no corresponde a un vehículo existente.");
+    }
+    if (vehiculo.obraId !== datos.obra_id) {
+      throw new AppError(400, "vehiculo_id no pertenece a la obra indicada.");
+    }
+  }
+
+  const passwordHash = await bcrypt.hash(datos.password as string, RONDAS_BCRYPT);
+
+  try {
+    const perfil = await prisma.perfil.create({
+      data: {
+        numeroEmpleado: datos.numero_empleado as string,
+        passwordHash,
+        nombreCompleto: datos.nombre_completo as string,
+        rol: "chofer",
+        obraId: datos.obra_id as string,
+        vehiculoId: (datos.vehiculo_id as string | undefined) ?? null,
+        area: (datos.area as string | undefined) ?? null,
+      },
+    });
+    return serializarPerfil(perfil);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError(409, `Ya existe un usuario con el número de empleado "${datos.numero_empleado}".`);
+    }
+    throw error;
+  }
 }

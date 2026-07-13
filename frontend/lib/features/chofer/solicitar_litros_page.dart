@@ -33,7 +33,11 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
 
   bool _excedeTope(int topeVehiculo) => (_litros ?? 0) > topeVehiculo;
 
-  Future<void> _enviar(Perfil perfil, Vehiculo vehiculo, int topeVehiculo) async {
+  Future<void> _enviar(
+    Perfil perfil,
+    Vehiculo vehiculo,
+    int topeVehiculo,
+  ) async {
     if (_litros == null) return;
     if (_excedeTope(topeVehiculo) && _motivoCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,14 +57,18 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
 
     setState(() => _enviando = true);
     try {
-      await ref.read(solicitudAutorizacionRepositoryProvider).crear(
+      await ref
+          .read(solicitudAutorizacionRepositoryProvider)
+          .crear(
             SolicitudAutorizacion(
               id: '',
               choferId: perfil.id,
               vehiculoId: vehiculo.id,
               obraId: obraId,
               litrosSolicitados: _litros!.toDouble(),
-              comentario: _motivoCtrl.text.trim().isEmpty ? null : _motivoCtrl.text.trim(),
+              comentario: _motivoCtrl.text.trim().isEmpty
+                  ? null
+                  : _motivoCtrl.text.trim(),
               estado: EstadoSolicitud.pendiente,
               creadoEn: DateTime.now(),
               creadoOffline: false,
@@ -70,7 +78,9 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Solicitud enviada. Te avisamos en cuanto te autoricen.'),
+          content: Text(
+            'Solicitud enviada. Te avisamos en cuanto te autoricen.',
+          ),
         ),
       );
       context.pop();
@@ -88,20 +98,27 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
     final perfil = ref.watch(sesionProvider);
     if (perfil?.vehiculoId == null) {
       return _PantallaError(
-        mensaje: 'Tu perfil no tiene un vehículo asignado. Contacta a tu administrativo.',
+        mensaje:
+            'Tu perfil no tiene un vehículo asignado. Contacta a tu administrativo.',
       );
     }
 
     final vehiculoAsync = ref.watch(vehiculoPorIdProvider(perfil!.vehiculoId!));
 
     return vehiculoAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => _PantallaError(mensaje: 'No se pudo cargar tu vehículo: $error'),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, _) =>
+          _PantallaError(mensaje: 'No se pudo cargar tu vehículo: $error'),
       data: (vehiculo) => _buildConVehiculo(context, perfil, vehiculo),
     );
   }
 
-  Widget _buildConVehiculo(BuildContext context, Perfil perfil, Vehiculo vehiculo) {
+  Widget _buildConVehiculo(
+    BuildContext context,
+    Perfil perfil,
+    Vehiculo vehiculo,
+  ) {
     _combustible ??= vehiculo.tipoCombustible;
     final topeVehiculo = vehiculo.topeLitrosSemanal.toInt();
     _litros ??= topeVehiculo < 20 ? topeVehiculo : 20;
@@ -197,7 +214,10 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
                     ),
                     error: (error, _) => Text(
                       'No hay un precio vigente configurado para ${_combustible!.etiqueta.toLowerCase()}.',
-                      style: const TextStyle(color: AppColors.error, fontSize: 13),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),
@@ -239,25 +259,45 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
         ),
       ),
       bottomNavigationBar: SafeArea(
-        child: ResponsiveCenter(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadii.card - 1),
-                boxShadow: AppShadows.primaryButton,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          // Row (no ResponsiveCenter/Align) a propósito: en el slot
+          // bottomNavigationBar, Scaffold da una altura laxa pero acotada, y
+          // un Align/Center sin heightFactor intenta ser "lo más grande
+          // posible" en vez de ajustarse al alto natural del botón — eso
+          // hacía que este botón se tragara casi toda la altura de la
+          // pantalla, empujando el body real (con el resto del formulario)
+          // a un espacio casi nulo e invisible. Row solo ocupa la altura de
+          // su hijo más alto, sin importar cuánto espacio laxo reciba.
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadii.card - 1),
+                    boxShadow: AppShadows.primaryButton,
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _enviando
+                        ? null
+                        : () => _enviar(perfil, vehiculo, topeVehiculo),
+                    child: _enviando
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Enviar solicitud'),
+                  ),
+                ),
               ),
-              child: ElevatedButton(
-                onPressed: _enviando ? null : () => _enviar(perfil, vehiculo, topeVehiculo),
-                child: _enviando
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
-                      )
-                    : const Text('Enviar solicitud'),
-              ),
-            ),
+            ],
           ),
         ),
       ),
@@ -278,7 +318,10 @@ class _PantallaError extends StatelessWidget {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.navy,
         elevation: 0,
-        title: const Text('Solicitar litros', style: TextStyle(color: AppColors.navy)),
+        title: const Text(
+          'Solicitar litros',
+          style: TextStyle(color: AppColors.navy),
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -287,9 +330,17 @@ class _PantallaError extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 40),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.error,
+                  size: 40,
+                ),
                 const SizedBox(height: 12),
-                Text(mensaje, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+                Text(
+                  mensaje,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).maybePop(),

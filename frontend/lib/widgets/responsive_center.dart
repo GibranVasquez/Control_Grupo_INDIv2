@@ -11,11 +11,20 @@ class ResponsiveCenter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: child,
+    // SizedBox.expand fuerza una restricción de tamaño *tight* (no laxa)
+    // antes de Align: sin esto, un hijo SingleChildScrollView (a diferencia
+    // de CustomScrollView, que sí tolera las restricciones laxas que da
+    // Align por sí solo) puede terminar dimensionado a alto cero — el
+    // contenido queda construido y es interactivo (los taps le llegan) pero
+    // no se pinta nada en pantalla. Visto en solicitar_litros_page.dart y
+    // comprobar_carga_page.dart.
+    return SizedBox.expand(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: child,
+        ),
       ),
     );
   }

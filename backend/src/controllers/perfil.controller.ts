@@ -10,3 +10,8 @@ export async function actualizarActivo(req: Request, res: Response): Promise<voi
   );
   res.json({ perfil });
 }
+
+export async function crear(req: Request, res: Response): Promise<void> {
+  const perfil = await perfilService.crear(req.user!, req.body ?? {});
+  res.status(201).json({ perfil });
+}

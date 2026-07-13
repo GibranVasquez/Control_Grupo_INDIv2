@@ -7,6 +7,14 @@ class AppColors {
   static const Color primary = Color(0xFF0165F9);
   static const Color primaryDark = Color(0xFF0148C0);
 
+  /// Acento secundario — violeta índigo, deliberadamente a ~40° de hue de
+  /// distancia del azul primario (identidad, no jerarquía): para resaltar
+  /// elementos "destacado/nuevo" sin competir con el azul de acciones
+  /// primarias ni con los colores semánticos (éxito/aviso/error).
+  static const Color secondary = Color(0xFF6D5DF6);
+  static const Color secondaryDark = Color(0xFF5644D6);
+  static const Color secondaryBg = Color(0xFFEFECFE);
+
   static const Color navy = Color(0xFF0A1E44);
   static const Color ink = Color(0xFF0E1526);
 

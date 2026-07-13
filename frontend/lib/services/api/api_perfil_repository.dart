@@ -61,8 +61,34 @@ class ApiPerfilRepository implements PerfilRepository {
   }
 
   @override
+  Future<List<Perfil>> listarTodos() async {
+    final filas = await powerSyncDatabase.getAll('SELECT * FROM perfiles');
+    return filas.map((fila) => Perfil.fromJson(_filaAJson(fila))).toList();
+  }
+
+  @override
   Future<void> actualizarActivo(String perfilId, bool activo) async {
     await apiClient.dio.put('/perfiles/$perfilId/activo', data: {'activo': activo});
+  }
+
+  @override
+  Future<Perfil> crear({
+    required String nombreCompleto,
+    required String numeroEmpleado,
+    required String password,
+    required String obraId,
+    String? vehiculoId,
+    String? area,
+  }) async {
+    final respuesta = await apiClient.dio.post<Map<String, dynamic>>('/perfiles', data: {
+      'nombre_completo': nombreCompleto,
+      'numero_empleado': numeroEmpleado,
+      'password': password,
+      'obra_id': obraId,
+      'vehiculo_id': ?vehiculoId,
+      'area': ?area,
+    });
+    return Perfil.fromJson(respuesta.data!['perfil'] as Map<String, dynamic>);
   }
 
   Map<String, dynamic> _filaAJson(Map<String, dynamic> fila) => {

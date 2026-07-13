@@ -22,16 +22,84 @@ class ComprobarCargaPage extends ConsumerStatefulWidget {
 
 class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
   XFile? _fotoTicket;
+  final List<XFile> _fotosEvidencia = [];
+  static const _maxFotosEvidencia = 5;
   num _recorrido = 0;
-  late num _litros = widget.solicitud.litrosAutorizados ?? widget.solicitud.litrosSolicitados;
+  late num _litros =
+      widget.solicitud.litrosAutorizados ?? widget.solicitud.litrosSolicitados;
   bool _enviando = false;
+
+  /// null mientras no se ha preguntado; true/false según la respuesta del
+  /// chofer a "¿se alcanza a leer el número en la foto?" — ver
+  /// _confirmarLegibilidad. El número tecleado en el stepper sigue siendo la
+  /// fuente de verdad aunque la respuesta sea "no": esto solo deja constancia
+  /// de que la evidencia fotográfica podría no alcanzar a verificarlo (ej.
+  /// reflejo de luz solar sobre el medidor).
+  bool? _evidenciaLegible;
 
   Future<void> _tomarFoto() async {
     final archivo = await ImagePicker().pickImage(source: ImageSource.camera);
-    if (archivo != null) setState(() => _fotoTicket = archivo);
+    if (archivo == null || !mounted) return;
+    setState(() => _fotoTicket = archivo);
+    await _confirmarLegibilidad();
   }
 
-  ({String etiqueta, Color color}) _semaforoRendimiento(double rendimiento, bool esMaquinaria) {
+  Future<void> _tomarFotoEvidencia() async {
+    if (_fotosEvidencia.length >= _maxFotosEvidencia) return;
+    final archivo = await ImagePicker().pickImage(source: ImageSource.camera);
+    if (archivo == null || !mounted) return;
+    setState(() => _fotosEvidencia.add(archivo));
+    if (_fotosEvidencia.length == 1) await _confirmarLegibilidad();
+  }
+
+  void _quitarFotoEvidencia(int indice) {
+    setState(() => _fotosEvidencia.removeAt(indice));
+  }
+
+  /// Se pregunta una sola vez, tras la primera foto (ticket o evidencia): es
+  /// la que normalmente encuadra el medidor/horómetro, donde el reflejo de
+  /// luz solar puede volver el número ilegible en la imagen.
+  Future<void> _confirmarLegibilidad() async {
+    final legible = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Se alcanza a leer el número en la foto?'),
+        content: const Text(
+          'Revisa la foto que acabas de tomar. Si el sol o un reflejo no dejan '
+          'ver bien la pantalla del medidor, el número que ya tecleaste sigue '
+          'siendo válido — solo nos ayuda a saber si la foto lo respalda.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('No se lee bien'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sí, se lee'),
+          ),
+        ],
+      ),
+    );
+    if (mounted)
+      setState(() => _evidenciaLegible = legible ?? _evidenciaLegible);
+  }
+
+  /// Umbral simple de anomalía: compara el recorrido tecleado contra lo
+  /// acumulado antes, en vez de contra un rango fijo — un vehículo que no
+  /// carga hace 3 días puede acumular más km/horas que uno que carga a diario,
+  /// así que se compara contra un "razonable por día" generoso en vez de un
+  /// tope absoluto.
+  bool _recorridoEsAnomalo(bool esMaquinaria) {
+    if (_recorrido <= 0) return false;
+    final topeRazonable = esMaquinaria ? 24 * 5 : 800 * 5;
+    return _recorrido > topeRazonable;
+  }
+
+  ({String etiqueta, Color color}) _semaforoRendimiento(
+    double rendimiento,
+    bool esMaquinaria,
+  ) {
     if (esMaquinaria) {
       // Horómetro: L/h fuera de 2–25 se considera atípico para maquinaria pesada.
       if (rendimiento < 2 || rendimiento > 25) {
@@ -40,7 +108,8 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
       if (rendimiento > 15) return (etiqueta: 'Alto', color: AppColors.warning);
       return (etiqueta: 'Normal', color: AppColors.success);
     }
-    if (rendimiento < 3 || rendimiento > 15) return (etiqueta: '⚠ Revisar', color: AppColors.error);
+    if (rendimiento < 3 || rendimiento > 15)
+      return (etiqueta: '⚠ Revisar', color: AppColors.error);
     if (rendimiento <= 6) return (etiqueta: 'Bajo', color: AppColors.warning);
     return (etiqueta: 'Normal', color: AppColors.success);
   }
@@ -56,10 +125,41 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
               : 'No registraste kilómetros recorridos hoy. ¿Confirmas que el vehículo no se movió antes de esta carga?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Sí, continuar'),
+          ),
+        ],
+      ),
+    );
+    return confirmado ?? false;
+  }
+
+  /// No bloquea el envío — solo obliga a que el chofer confirme un valor que
+  /// se sale de lo razonable para esta unidad antes de mandarlo, por si fue
+  /// un error de tecleo (ej. un cero de más).
+  Future<bool> _confirmarRecorridoAnomalo(bool esMaquinaria) async {
+    final unidad = esMaquinaria ? 'horas' : 'km';
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Este valor parece fuera de lo normal'),
+        content: Text(
+          '$_recorrido $unidad es mucho para esta unidad. Verifica que no '
+          'hayas tecleado un dígito de más antes de enviar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Voy a revisarlo'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Está correcto, continuar'),
           ),
         ],
       ),
@@ -72,7 +172,20 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
     required double precioPorLitro,
     required Carga? ultimaCarga,
   }) async {
-    if (_fotoTicket == null) {
+    final esMaquinaria = vehiculo.tipoUnidad == TipoUnidad.maquinaria;
+
+    if (esMaquinaria) {
+      if (_fotosEvidencia.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Falta al menos una foto de evidencia (medidor/unidad).',
+            ),
+          ),
+        );
+        return;
+      }
+    } else if (_fotoTicket == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Falta la foto del ticket de la gasolinería.'),
@@ -81,18 +194,24 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
       return;
     }
 
-    final esMaquinaria = vehiculo.tipoUnidad == TipoUnidad.maquinaria;
     if (_recorrido <= 0) {
       final confirma = await _confirmarSinRecorrido(esMaquinaria);
       if (!confirma) return;
+    } else if (_recorridoEsAnomalo(esMaquinaria)) {
+      final continuar = await _confirmarRecorridoAnomalo(esMaquinaria);
+      if (!continuar) return;
     }
 
     setState(() => _enviando = true);
     try {
-      final anterior = esMaquinaria ? (ultimaCarga?.horasActual ?? 0) : (ultimaCarga?.kmActual ?? 0);
+      final anterior = esMaquinaria
+          ? (ultimaCarga?.horasActual ?? 0)
+          : (ultimaCarga?.kmActual ?? 0);
       final actual = anterior + _recorrido.toInt();
 
-      final cargaId = await ref.read(cargaRepositoryProvider).crear(
+      final cargaId = await ref
+          .read(cargaRepositoryProvider)
+          .crear(
             Carga(
               id: '',
               solicitudId: widget.solicitud.id,
@@ -111,23 +230,37 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
             ),
           );
 
-      final rutaFoto = _fotoTicket!.path;
+      // El backend hoy solo guarda una foto por carga (foto_ticket_url,
+      // ver backend/src/controllers/carga.controller.ts). Para Vehículo esa
+      // foto es el ticket; para Maquinaria/evidencia múltiple se sube la
+      // primera foto de evidencia por ahora — guardar las demás requiere que
+      // el backend agregue una tabla de evidencias (pendiente, fuera de
+      // alcance del frontend: no se debe improvisar en la base compartida).
+      final rutaFoto = esMaquinaria
+          ? _fotosEvidencia.first.path
+          : _fotoTicket!.path;
       final subioFoto = await _subirFotoConReintentos(cargaId, rutaFoto);
       if (!subioFoto) {
         // Sin conexión (o la carga todavía no sincronizó): se encola para
         // subirse sola en cuanto la app detecte conexión de nuevo, sin que el
         // chofer tenga que volver a esta pantalla (ver
         // colaFotosTicketWatcherProvider en state/providers.dart).
-        await ref.read(colaFotosTicketServiceProvider).agregar(cargaId: cargaId, rutaLocal: rutaFoto);
+        await ref
+            .read(colaFotosTicketServiceProvider)
+            .agregar(cargaId: cargaId, rutaLocal: rutaFoto);
       }
       if (!mounted) return;
 
+      final avisoEvidenciasExtra = esMaquinaria && _fotosEvidencia.length > 1
+          ? ' Solo la primera foto de evidencia se guardó; el resto se conservan en tu equipo hasta que exista un lugar para varias.'
+          : '';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            subioFoto
-                ? 'Carga registrada y ticket subido correctamente.'
-                : 'Carga registrada. El ticket se subirá automáticamente en cuanto se recupere la conexión.',
+            (subioFoto
+                    ? 'Carga registrada y evidencia subida correctamente.'
+                    : 'Carga registrada. La evidencia se subirá automáticamente en cuanto se recupere la conexión.') +
+                avisoEvidenciasExtra,
           ),
         ),
       );
@@ -151,7 +284,9 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
     const intentos = 4;
     for (var i = 0; i < intentos; i++) {
       try {
-        await ref.read(cargaRepositoryProvider).subirFotoTicket(cargaId, rutaLocal);
+        await ref
+            .read(cargaRepositoryProvider)
+            .subirFotoTicket(cargaId, rutaLocal);
         return true;
       } catch (_) {
         if (i == intentos - 1) return false;
@@ -163,20 +298,30 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vehiculoAsync = ref.watch(vehiculoPorIdProvider(widget.solicitud.vehiculoId));
+    final vehiculoAsync = ref.watch(
+      vehiculoPorIdProvider(widget.solicitud.vehiculoId),
+    );
 
     return vehiculoAsync.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, _) => _PantallaError(
-        mensaje: 'No se encontró el vehículo de esta solicitud. No se puede comprobar la carga.\n($error)',
+        mensaje:
+            'No se encontró el vehículo de esta solicitud. No se puede comprobar la carga.\n($error)',
       ),
       data: (vehiculo) => Consumer(
         builder: (context, ref, _) {
-          final precioAsync = ref.watch(precioVigenteProvider(vehiculo.tipoCombustible));
-          final ultimaCargaAsync = ref.watch(ultimaCargaPorVehiculoProvider(vehiculo.id));
+          final precioAsync = ref.watch(
+            precioVigenteProvider(vehiculo.tipoCombustible),
+          );
+          final ultimaCargaAsync = ref.watch(
+            ultimaCargaPorVehiculoProvider(vehiculo.id),
+          );
 
           if (precioAsync.isLoading || ultimaCargaAsync.isLoading) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
           }
           if (precioAsync.hasError) {
             return _PantallaError(
@@ -185,7 +330,9 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
             );
           }
           if (ultimaCargaAsync.hasError) {
-            return _PantallaError(mensaje: 'No se pudo consultar el historial de este vehículo.');
+            return _PantallaError(
+              mensaje: 'No se pudo consultar el historial de este vehículo.',
+            );
           }
 
           return _Formulario(
@@ -194,10 +341,15 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
             precioPorLitro: precioAsync.requireValue.precioPorLitro,
             ultimaCarga: ultimaCargaAsync.requireValue,
             fotoTicket: _fotoTicket,
+            fotosEvidencia: _fotosEvidencia,
+            maxFotosEvidencia: _maxFotosEvidencia,
+            evidenciaLegible: _evidenciaLegible,
             recorrido: _recorrido,
             litros: _litros,
             enviando: _enviando,
             onTomarFoto: _tomarFoto,
+            onTomarFotoEvidencia: _tomarFotoEvidencia,
+            onQuitarFotoEvidencia: (i) => _quitarFotoEvidencia(i),
             onRecorridoChanged: (v) => setState(() => _recorrido = v),
             onLitrosChanged: (v) => setState(() => _litros = v),
             semaforo: _semaforoRendimiento,
@@ -220,10 +372,15 @@ class _Formulario extends StatelessWidget {
     required this.precioPorLitro,
     required this.ultimaCarga,
     required this.fotoTicket,
+    required this.fotosEvidencia,
+    required this.maxFotosEvidencia,
+    required this.evidenciaLegible,
     required this.recorrido,
     required this.litros,
     required this.enviando,
     required this.onTomarFoto,
+    required this.onTomarFotoEvidencia,
+    required this.onQuitarFotoEvidencia,
     required this.onRecorridoChanged,
     required this.onLitrosChanged,
     required this.semaforo,
@@ -235,14 +392,24 @@ class _Formulario extends StatelessWidget {
   final double precioPorLitro;
   final Carga? ultimaCarga;
   final XFile? fotoTicket;
+  final List<XFile> fotosEvidencia;
+  final int maxFotosEvidencia;
+  final bool? evidenciaLegible;
   final num recorrido;
   final num litros;
   final bool enviando;
   final VoidCallback onTomarFoto;
+  final VoidCallback onTomarFotoEvidencia;
+  final ValueChanged<int> onQuitarFotoEvidencia;
   final ValueChanged<num> onRecorridoChanged;
   final ValueChanged<num> onLitrosChanged;
-  final ({String etiqueta, Color color}) Function(double rendimiento, bool esMaquinaria) semaforo;
-  final Future<void> Function(double precioPorLitro, Carga? ultimaCarga) onEnviar;
+  final ({String etiqueta, Color color}) Function(
+    double rendimiento,
+    bool esMaquinaria,
+  )
+  semaforo;
+  final Future<void> Function(double precioPorLitro, Carga? ultimaCarga)
+  onEnviar;
 
   bool get _esMaquinaria => vehiculo.tipoUnidad == TipoUnidad.maquinaria;
 
@@ -253,7 +420,9 @@ class _Formulario extends StatelessWidget {
     final importe = litros * precioPorLitro;
     final formatoMoneda = NumberFormat.currency(locale: 'es_MX', symbol: r'$');
     final semaforoActual = semaforo(_rendimiento, _esMaquinaria);
-    final anterior = _esMaquinaria ? (ultimaCarga?.horasActual ?? 0) : (ultimaCarga?.kmActual ?? 0);
+    final anterior = _esMaquinaria
+        ? (ultimaCarga?.horasActual ?? 0)
+        : (ultimaCarga?.kmActual ?? 0);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -303,7 +472,20 @@ class _Formulario extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _ZonaFoto(foto: fotoTicket, onTap: onTomarFoto),
+                if (_esMaquinaria)
+                  _ZonaEvidenciaMultiple(
+                    fotos: fotosEvidencia,
+                    maximo: maxFotosEvidencia,
+                    legible: evidenciaLegible,
+                    onTomarFoto: onTomarFotoEvidencia,
+                    onQuitarFoto: onQuitarFotoEvidencia,
+                  )
+                else
+                  _ZonaFoto(
+                    foto: fotoTicket,
+                    legible: evidenciaLegible,
+                    onTap: onTomarFoto,
+                  ),
                 const SizedBox(height: 24),
                 Text(
                   _esMaquinaria ? 'HORAS DE OPERACIÓN DE HOY' : 'KM DEL DÍA',
@@ -424,19 +606,37 @@ class _Formulario extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: SafeArea(
-        child: ResponsiveCenter(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: ElevatedButton(
-              onPressed: enviando ? null : () => onEnviar(precioPorLitro, ultimaCarga),
-              child: enviando
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
-                    )
-                  : const Text('Enviar comprobación'),
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          // Row (no ResponsiveCenter/Align) a propósito: ver la nota igual
+          // en solicitar_litros_page.dart — Align sin heightFactor se
+          // expande a ocupar casi toda la altura disponible en el slot de
+          // bottomNavigationBar, dejando el body real casi sin espacio.
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: enviando
+                        ? null
+                        : () => onEnviar(precioPorLitro, ultimaCarga),
+                    child: enviando
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Enviar comprobación'),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -457,7 +657,10 @@ class _PantallaError extends StatelessWidget {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.navy,
         elevation: 0,
-        title: const Text('Comprobar carga', style: TextStyle(color: AppColors.navy)),
+        title: const Text(
+          'Comprobar carga',
+          style: TextStyle(color: AppColors.navy),
+        ),
       ),
       body: SafeArea(
         child: Center(
@@ -466,9 +669,17 @@ class _PantallaError extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 40),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.error,
+                  size: 40,
+                ),
                 const SizedBox(height: 12),
-                Text(mensaje, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
+                Text(
+                  mensaje,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).maybePop(),
@@ -525,9 +736,14 @@ class _FilaDato extends StatelessWidget {
 }
 
 class _ZonaFoto extends StatelessWidget {
-  const _ZonaFoto({required this.foto, required this.onTap});
+  const _ZonaFoto({
+    required this.foto,
+    required this.legible,
+    required this.onTap,
+  });
 
   final XFile? foto;
+  final bool? legible;
   final VoidCallback onTap;
 
   @override
@@ -578,8 +794,167 @@ class _ZonaFoto extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  if (legible == false) ...[
+                    const SizedBox(height: 6),
+                    const _AvisoNoLegible(),
+                  ],
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// Grid de fotos de evidencia para Maquinaria (sin ticket): el chofer puede
+/// tomar hasta [maximo] fotos (medidor, unidad) y quitar las que no sirvan
+/// antes de enviar. El backend hoy solo persiste la primera (ver
+/// _ComprobarCargaPageState._enviar) — el resto queda en el equipo.
+class _ZonaEvidenciaMultiple extends StatelessWidget {
+  const _ZonaEvidenciaMultiple({
+    required this.fotos,
+    required this.maximo,
+    required this.legible,
+    required this.onTomarFoto,
+    required this.onQuitarFoto,
+  });
+
+  final List<XFile> fotos;
+  final int maximo;
+  final bool? legible;
+  final VoidCallback onTomarFoto;
+  final ValueChanged<int> onQuitarFoto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'FOTOS DE EVIDENCIA',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${fotos.length} de $maximo',
+              style: const TextStyle(
+                color: AppColors.textTertiary,
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Sin ticket: sube fotos del medidor/horómetro y de la unidad, como las que mandas por WhatsApp.',
+          style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (var i = 0; i < fotos.length; i++)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(AppRadii.miniCard),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle_rounded,
+                      color: AppColors.success,
+                    ),
+                  ),
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: InkWell(
+                      onTap: () => onQuitarFoto(i),
+                      borderRadius: BorderRadius.circular(12),
+                      child: const CircleAvatar(
+                        radius: 11,
+                        backgroundColor: AppColors.error,
+                        child: Icon(
+                          Icons.close_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            if (fotos.length < maximo)
+              InkWell(
+                borderRadius: BorderRadius.circular(AppRadii.miniCard),
+                onTap: onTomarFoto,
+                child: Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadii.miniCard),
+                    border: Border.all(
+                      color: AppColors.borderStrong,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.add_a_photo_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (legible == false) ...[
+          const SizedBox(height: 10),
+          const _AvisoNoLegible(),
+        ],
+      ],
+    );
+  }
+}
+
+class _AvisoNoLegible extends StatelessWidget {
+  const _AvisoNoLegible();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.warningBg,
+        border: Border.all(color: AppColors.warningBorder),
+        borderRadius: BorderRadius.circular(AppRadii.badge),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 14,
+            color: AppColors.warningTextStrong,
+          ),
+          SizedBox(width: 6),
+          Text(
+            'Evidencia no verificable por el reflejo — el número tecleado es el válido.',
+            style: TextStyle(
+              color: AppColors.warningTextStrong,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
       ),
     );
   }

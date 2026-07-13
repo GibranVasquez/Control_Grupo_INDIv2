@@ -2,20 +2,20 @@ name: gi-powersync
 
 # PowerSync (open source, self-hosted) para sincronización offline-first.
 #
-# No levanta un Postgres nuevo para los datos de negocio: el servicio
-# `powersync` se conecta al Postgres local que ya usa el backend
-# (`gi_control_combustible`), replicando por WAL lógico. Usa
-# `network_mode: host` (en vez de exponer el Postgres del host a la red
-# bridge de Docker) para que la conexión salga como 127.0.0.1: así reutiliza
-# las reglas de pg_hba.conf que ya confían en localhost, sin tener que editar
-# la config de Postgres (que pertenece al usuario de sistema `postgres` y
-# requeriría sudo) para permitir la subred del bridge de Docker.
+# El servicio `powersync` replica por WAL lógico contra el Postgres de
+# negocio en Railway (`PS_DATA_SOURCE_URI`, ver ../POWERSYNC.md sección 5) —
+# no contra un Postgres local. Al ser una conexión externa, no hace falta
+# `network_mode: host` para alcanzarla, así que ambos servicios usan la red
+# bridge normal de compose. Esto también hace el setup portable a Windows
+# (Docker Desktop en Windows/Mac no soporta `network_mode: host` igual que
+# Linux nativo, y requiere un toggle experimental de "host networking").
 #
-# Sí levanta un Postgres propio y separado (`pg-storage`) solo para el
-# "bucket storage" interno de PowerSync (su libro de sincronización), que
-# nunca debe compartirse con el esquema de negocio. Vive en la red bridge
-# normal de compose, publicado en localhost:${PG_STORAGE_PORT} para que
-# `powersync` (en la red del host) pueda alcanzarlo.
+# `pg-storage` es un Postgres propio y separado solo para el "bucket
+# storage" interno de PowerSync (su libro de sincronización), que nunca
+# debe compartirse con el esquema de negocio. `powersync` lo alcanza por su
+# nombre de servicio (`pg-storage`) dentro de la red bridge de compose;
+# además se publica en localhost:${PG_STORAGE_PORT} por si se necesita
+# inspeccionar desde el host.
 #
 # Uso: ver ../POWERSYNC.md
 
@@ -24,7 +24,8 @@ services:
     image: journeyapps/powersync-service:latest
     restart: unless-stopped
     command: ["start", "-r", "unified"]
-    network_mode: host
+    ports:
+      - "${PS_PORT:-8080}:${PS_PORT:-8080}"
     depends_on:
       pg-storage:
         condition: service_healthy
@@ -35,7 +36,7 @@ services:
       NODE_OPTIONS: --max-old-space-size=500
       PS_PORT: ${PS_PORT:-8080}
       PS_DATA_SOURCE_URI: ${PS_DATA_SOURCE_URI}
-      PS_STORAGE_SOURCE_URI: postgresql://${PG_STORAGE_USER:-powersync_storage}:${PG_STORAGE_PASSWORD:?falta PG_STORAGE_PASSWORD en powersync/.env}@127.0.0.1:${PG_STORAGE_PORT:-5433}/${PG_STORAGE_DB:-powersync_storage}
+      PS_STORAGE_SOURCE_URI: postgresql://${PG_STORAGE_USER:-powersync_storage}:${PG_STORAGE_PASSWORD:?falta PG_STORAGE_PASSWORD en powersync/.env}@pg-storage:5432/${PG_STORAGE_DB:-powersync_storage}
       PS_JWT_SECRET_B64URL: ${PS_JWT_SECRET_B64URL:?falta PS_JWT_SECRET_B64URL en powersync/.env}
       PS_JWT_KID: ${PS_JWT_KID:-gi-backend-hs256-v1}
       # CA autofirmada de Railway para sslmode: verify-ca (ver .env.example
@@ -60,9 +61,8 @@ services:
       POSTGRES_PASSWORD: ${PG_STORAGE_PASSWORD:?falta PG_STORAGE_PASSWORD en powersync/.env}
       POSTGRES_DB: ${PG_STORAGE_DB:-powersync_storage}
     ports:
-      # Solo en loopback: powersync (network_mode: host) lo alcanza como
-      # 127.0.0.1:PG_STORAGE_PORT. No es la base de negocio, no necesita
-      # exponerse más allá de la máquina.
+      # Publicado en loopback solo para inspección manual desde el host;
+      # `powersync` la alcanza por nombre de servicio en la red bridge.
       - "127.0.0.1:${PG_STORAGE_PORT:-5433}:5432"
     volumes:
       - pg_storage_data:/var/lib/postgresql

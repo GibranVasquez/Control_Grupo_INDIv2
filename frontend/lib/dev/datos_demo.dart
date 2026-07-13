@@ -1,14 +1,9 @@
 import '../models/models.dart';
-import 'usuario_registrado.dart';
 
 /// Datos ilustrativos para maquetar la UI mientras no hay repositorios reales conectados.
 /// Borrar este archivo (y sus usos) en cuanto las pantallas lean de Supabase/PowerSync.
 class DatosDemo {
   DatosDemo._();
-
-  /// Usuarios dados de alta desde `register_page.dart`. Lista mutable a propósito:
-  /// es el "CRUD en memoria" que simula un backend de altas mientras no existe uno real.
-  static final List<UsuarioRegistrado> usuariosRegistrados = [];
 
   /// Ingenieros con los que un chofer puede reportarse, elegibles en el registro.
   static final ingenierosDemo = <Perfil>[
