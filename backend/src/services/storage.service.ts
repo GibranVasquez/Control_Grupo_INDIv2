@@ -2,6 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { AppError } from "../utils/AppError";
 
 export interface ArchivoParaSubir {
   buffer: Buffer;
@@ -18,6 +19,40 @@ export interface StorageService {
 
 function nombreUnico(nombreOriginal: string): string {
   return `${crypto.randomUUID()}${path.extname(nombreOriginal)}`;
+}
+
+const REINTENTOS_SUBIDA_R2 = 3;
+const ESPERA_BASE_MS = 500;
+
+function esperar(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * R2 no está en la ruta crítica del registro de la carga (la carga ya existe
+ * antes de subir la foto), pero si la subida falla el chofer no debe perder
+ * la foto en silencio: reintenta con backoff y, si aun así falla, propaga un
+ * error claro. El cliente (con su propia cola de reintentos offline) vuelve
+ * a mandar la foto más tarde en vez de que el backend la descarte.
+ */
+async function conReintentos<T>(operacion: () => Promise<T>): Promise<T> {
+  for (let intento = 1; intento <= REINTENTOS_SUBIDA_R2; intento++) {
+    try {
+      return await operacion();
+    } catch (error) {
+      console.error(
+        `[storage.service] Falló intento ${intento}/${REINTENTOS_SUBIDA_R2} de subida a R2:`,
+        error
+      );
+      if (intento < REINTENTOS_SUBIDA_R2) {
+        await esperar(ESPERA_BASE_MS * 2 ** (intento - 1));
+      }
+    }
+  }
+  throw new AppError(
+    502,
+    "No se pudo subir la foto del ticket a almacenamiento remoto. Intenta de nuevo más tarde."
+  );
 }
 
 /**
@@ -73,13 +108,15 @@ class S3StorageService implements StorageService {
 
   async subirArchivo(carpeta: string, archivo: ArchivoParaSubir): Promise<string> {
     const key = `${carpeta}/${nombreUnico(archivo.nombreOriginal)}`;
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: archivo.buffer,
-        ContentType: archivo.mimeType,
-      })
+    await conReintentos(() =>
+      this.client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+          Body: archivo.buffer,
+          ContentType: archivo.mimeType,
+        })
+      )
     );
     return key;
   }

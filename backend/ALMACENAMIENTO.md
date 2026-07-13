@@ -75,3 +75,19 @@ para no perder fotos en cada redeploy.
    guardadas en la base de datos sigan resolviendo).
 3. Para volver a `local`, basta con quitar/cambiar `STORAGE_PROVIDER` — no
    requiere ningún otro cambio de código.
+
+## Qué pasa si falla la subida a R2
+
+`storage.service.ts` reintenta la subida hasta 3 veces (backoff: 500ms,
+1000ms) antes de darse por vencido. Cada intento fallido se loguea con
+`console.error` (útil para revisar logs de Railway/Render si empiezan a
+fallar subidas). Si los 3 intentos fallan, `POST /cargas/:id/foto-ticket`
+responde `502` con un mensaje claro — la carga en sí **no se pierde** (ya
+existe en la base antes de subir la foto), solo la foto no queda asociada
+todavía.
+
+No hay una cola de reintentos del lado del backend para este caso: la app
+Flutter ya tiene su propia cola de reintentos offline (para cuando no hay
+conexión en absoluto), y ese mismo mecanismo cubre este caso — un 502 hace
+que el cliente reintente el envío de la foto más tarde, en vez de que el
+backend duplique esa lógica con una cola propia.
