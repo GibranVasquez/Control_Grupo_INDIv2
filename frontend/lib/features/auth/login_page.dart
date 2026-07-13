@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../state/auth_controller.dart';
 import '../../state/providers.dart';
@@ -168,7 +169,35 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onPressed: _entrarComoAdministrador,
                             ),
                           ],
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 18),
+                          Center(
+                            child: TextButton(
+                              onPressed: cargando
+                                  ? null
+                                  : () => context.push('/registro-chofer'),
+                              child: RichText(
+                                text: const TextSpan(
+                                  style: TextStyle(fontSize: 13.5),
+                                  children: [
+                                    TextSpan(
+                                      text: '¿Eres chofer y no tienes cuenta? ',
+                                      style: TextStyle(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'Regístrate',
+                                      style: TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           const Center(
                             child: Text(
                               'Grupo INDI © 2026 · v1.0',
