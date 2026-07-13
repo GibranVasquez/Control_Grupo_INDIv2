@@ -11,17 +11,25 @@ telemetry:
 # powersync_role es de solo lectura + replicación (ver
 # ../sql/prepare-source-db.sql).
 #
-# sslmode: disable — el schema de PowerSync solo acepta verify-full |
-# verify-ca | disable (no existe un "require" sin verificar certificado).
-# verify-full/verify-ca fallan contra el proxy de Railway (certificate
-# verify failed: el cert que sirve hayabusa.proxy.rlwy.net no valida contra
-# las CAs del sistema). Tradeoff pendiente de decisión: el tráfico de
-# replicación va sin TLS por internet contra Railway. Ver POWERSYNC.md.
+# sslmode: verify-ca — el proxy de Railway sirve un certificado autofirmado
+# (CN=localhost, emitido por una CA propia CN=root-ca) que no valida contra
+# las CAs de confianza del sistema, por eso verify-full/verify-ca fallaban
+# antes con "certificate verify failed". La solución no es desactivar TLS:
+# es fijar (pin) esa CA autofirmada explícitamente con `cacert` (PS_PG_CACERT
+# en powersync/.env, ver .env.example) — el schema de PowerSync sí soporta
+# esto aunque el certificado no sea de una CA pública. Con eso, verify-ca
+# cifra el tráfico y valida que el servidor presente un cert firmado por esa
+# CA pinneada (protege contra MITM en el internet público), sin necesitar
+# red privada de Railway. No se usa verify-full porque el cert hoja dice
+# CN=localhost, no el hostname público — verify-ca no valida el hostname,
+# solo la cadena de confianza, así que es la opción correcta aquí. Detalle
+# completo y cómo regenerar el cert si Railway lo rota: ver POWERSYNC.md.
 replication:
   connections:
     - type: postgresql
       uri: !env PS_DATA_SOURCE_URI
-      sslmode: disable
+      sslmode: verify-ca
+      cacert: !env PS_PG_CACERT
 
 # Almacenamiento interno de PowerSync (buckets de sincronización), en su
 # propio Postgres (contenedor pg-storage), separado del esquema de negocio.

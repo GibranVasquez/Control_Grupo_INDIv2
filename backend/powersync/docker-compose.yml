@@ -38,6 +38,10 @@ services:
       PS_STORAGE_SOURCE_URI: postgresql://${PG_STORAGE_USER:-powersync_storage}:${PG_STORAGE_PASSWORD:?falta PG_STORAGE_PASSWORD en powersync/.env}@127.0.0.1:${PG_STORAGE_PORT:-5433}/${PG_STORAGE_DB:-powersync_storage}
       PS_JWT_SECRET_B64URL: ${PS_JWT_SECRET_B64URL:?falta PS_JWT_SECRET_B64URL en powersync/.env}
       PS_JWT_KID: ${PS_JWT_KID:-gi-backend-hs256-v1}
+      # CA autofirmada de Railway para sslmode: verify-ca (ver .env.example
+      # y POWERSYNC.md). Vacío/no definida cuando PS_DATA_SOURCE_URI apunta a
+      # un Postgres local sin TLS (sslmode: disable en ese caso).
+      PS_PG_CACERT: ${PS_PG_CACERT:-}
     healthcheck:
       test:
         - "CMD"

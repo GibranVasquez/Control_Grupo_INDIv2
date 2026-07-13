@@ -203,8 +203,14 @@ cambiaría:
   empezar a replicar. Para confirmarlo: `docker compose logs -f powersync` y
   buscar que ese warning deje de repetirse / aparezca algo como "Snapshot
   completed" o actividad de replicación en vez del error.
+- `sslmode: verify-ca` con `cacert` pinneado (ver sección 5): probado con
+  `psql` directo contra Railway (conecta y valida) y aplicado en
+  `config/service.yaml` con `docker compose up -d --force-recreate
+  powersync`. Confirmado en logs tras el recreate: sin errores de
+  certificado, `"Replicating op 0 ..."` — sigue replicando igual que con
+  `sslmode: disable`, ahora cifrado.
 
-## 5. Fuente de datos en Railway: `sslmode` y redes privadas (pendiente antes de producción)
+## 5. Fuente de datos en Railway: `sslmode`, CA pinneada y redes privadas
 
 `PS_DATA_SOURCE_URI` en `backend/powersync/.env` ya no apunta al Postgres
 local: apunta a la base de Railway (`hayabusa.proxy.rlwy.net:<puerto>/railway`),
@@ -216,26 +222,80 @@ el streaming ya corren correctamente contra Railway (ver logs con
 `docker compose logs -f powersync`: snapshot de las tablas de negocio y
 `"Activated new replication stream"`).
 
-### Por qué `sslmode: disable`
+### `sslmode: verify-ca` con la CA autofirmada de Railway pinneada
 
-`config/service.yaml` tiene `sslmode: disable` para esta conexión. Esto
-significa que el tráfico de replicación viaja **sin cifrar** por internet
-público entre donde corra este `docker-compose` (hoy, la máquina de
-desarrollo) y Railway. No es ideal, pero es la única opción que funciona
-hoy:
+`config/service.yaml` usa `sslmode: verify-ca` + `cacert: !env PS_PG_CACERT`
+para esta conexión. El tráfico de replicación va **cifrado** entre donde
+corra este `docker-compose` y Railway, y PowerSync valida que el servidor
+presente un certificado firmado por esa CA — no es `sslmode: disable`.
+
+Por qué no bastaba con `verify-full`/`verify-ca` "a secas" (sin `cacert`):
 
 - El schema de configuración de PowerSync solo acepta `verify-full`,
   `verify-ca` o `disable` para `sslmode` — no existe un modo "cifra pero no
   valides el certificado" (el `sslmode=require` de libpq no es una opción
   válida aquí).
-- Probé `verify-full` y `verify-ca` con `psql` directo contra
-  `hayabusa.proxy.rlwy.net`: ambos fallan con `certificate verify failed`
-  — el certificado que sirve el proxy de Railway no valida contra las CAs
-  de confianza del sistema (es de esperarse: el proxy TCP de Railway no
-  está pensado para terminar TLS con un certificado público verificable
-  para ese hostname).
-- Con esas dos opciones descartadas, `disable` es lo único que deja
-  arrancar el worker de replicación.
+- Contra las CAs de confianza del sistema, `verify-full` y `verify-ca`
+  fallan con `certificate verify failed`: el proxy de Railway sirve el
+  certificado que expone el propio Postgres al arrancar con TLS activado
+  por default — un cert autofirmado (`CN=localhost`, emitido por una CA
+  propia `CN=root-ca`), no uno de una CA pública. Verificado con:
+
+  ```bash
+  openssl s_client -starttls postgres -connect hayabusa.proxy.rlwy.net:<puerto> \
+    -verify_return_error </dev/null
+  # verify error:num=19:self-signed certificate in certificate chain
+  ```
+
+- La solución no es apagar TLS, es **fijar (pin) esa CA autofirmada
+  explícitamente**: el schema de PowerSync sí tiene un campo `cacert` para
+  esto en la conexión postgresql (ver
+  `https://unpkg.com/@powersync/service-schema@latest/json-schema/powersync-config.json`,
+  y el código que lo consume en
+  `libs/lib-postgres` del repo `powersync-ja/powersync-service` —
+  `normalizeConnectionConfig` pasa `cacert` tal cual, como contenido PEM
+  literal, no como ruta de archivo). Con esa CA fijada:
+
+  ```bash
+  psql "host=hayabusa.proxy.rlwy.net port=<puerto> dbname=railway \
+    user=powersync_role sslmode=verify-ca sslrootcert=railway-ca.pem" -c "select 1;"
+  # funciona: conecta cifrado y valida la cadena contra esa CA
+  ```
+
+- No se usa `verify-full`: el cert hoja dice `CN=localhost` (no el hostname
+  público de Railway), así que la verificación de hostname de `verify-full`
+  fallaría igual. `verify-ca` no valida el hostname, solo que la cadena de
+  certificados esté firmada por la CA pinneada — que es exactamente la
+  garantía que queremos aquí (protege contra MITM en el internet público;
+  no protege contra alguien que ya controla el propio Postgres de Railway,
+  pero ese es un nivel de confianza que ya dábamos por hecho).
+
+### Cómo se obtuvo y dónde vive `PS_PG_CACERT`
+
+El segundo certificado de la cadena que sirve el proxy (el autofirmado,
+`CN=root-ca`) se extrajo con:
+
+```bash
+openssl s_client -starttls postgres -connect hayabusa.proxy.rlwy.net:<puerto> \
+  -showcerts </dev/null 2>/dev/null | \
+  awk '/BEGIN CERT/{c++} c==2{print} /END CERT/ && c==2{exit}'
+```
+
+y se guardó como `PS_PG_CACERT` en `backend/powersync/.env` (gitignorado),
+con los saltos de línea del PEM escapados como `\n` literales dentro de
+comillas dobles (así los interpreta el parser de env files de Compose). Ver
+`.env.example` para el formato exacto y el mismo comando de extracción.
+
+**Riesgo a vigilar**: esta CA la genera el propio proceso de Postgres al
+inicializar TLS (no es algo que Railway documente como estable ni
+rotable a demanda desde su dashboard). Si Railway alguna vez reinicializa
+el volumen de datos de ese Postgres (no un simple restart — un restart
+normal conserva el mismo cert porque vive en el volumen), esta CA cambiaría
+y `verify-ca` empezaría a fallar en los logs de `powersync` con
+`certificate verify failed`. Si eso pasa: re-ejecutar el comando de arriba
+para capturar la CA nueva, actualizar `PS_PG_CACERT` en `.env`, y
+`docker compose up -d --force-recreate powersync`. Mientras tanto, esto no
+requiere ningún cambio de infraestructura ni migración.
 
 ### Investigación de "Private Networking" de Railway como alternativa
 
@@ -262,17 +322,26 @@ Esto es esperado y consistente con la documentación de Railway: el
 `railway.internal` de un proyecto no es un DNS público, solo resuelve
 dentro de su propia red interna.
 
-### Tarea pendiente antes de producción real
+### ¿Sigue teniendo sentido migrar a la red privada? (opcional, no bloqueante)
 
-Para eliminar el `sslmode: disable` de raíz (no solo mitigarlo), el
-servicio `powersync` (y opcionalmente `pg-storage`) tendría que desplegarse
-**dentro de Railway, en el mismo proyecto que la base de Postgres** — no
-seguir corriendo vía `docker compose` en una máquina externa. Una vez ahí,
-`PS_DATA_SOURCE_URI` apuntaría a `<nombre-del-servicio-postgres>.railway.internal:5432`
-en vez del proxy público, y el tráfico de replicación nunca tocaría
-internet — sin necesidad de resolver verificación de certificados.
+Con `verify-ca` + CA pinneada, el problema original (tráfico sin cifrar) ya
+está resuelto sin tocar infraestructura. Migrar `powersync`/`pg-storage` a
+correr **dentro de Railway** (mismo proyecto que el Postgres) seguiría
+siendo una mejora, pero ahora es una cuestión de superficie de exposición y
+operación, no de cifrado:
 
-Esto implica, cuando se planee producción real:
+- Ventaja real que quedaría pendiente: el tráfico de replicación dejaría de
+  pasar por el proxy público (`*.proxy.rlwy.net`) del todo, reduciendo la
+  superficie atacable (nadie fuera de Railway podría siquiera intentar
+  conectarse a ese puerto) y evitando depender de que Railway no rote la CA
+  autofirmada (ver riesgo arriba).
+- Costo: el `docker-compose.yml` actual (`powersync` + `pg-storage`,
+  pensado para correr en una máquina de desarrollo con `network_mode:
+  host`) tendría que convertirse en servicios de Railway (o usar PowerSync
+  Cloud, ver sección 3), y `PS_DATA_SOURCE_URI` pasaría a apuntar a
+  `<servicio-postgres>.railway.internal:5432` en vez del proxy público.
+
+Si se decide hacerlo más adelante, los pasos serían:
 
 1. Migrar `docker-compose.yml` (`powersync` + `pg-storage`) a servicios de
    Railway (o el storage administrado equivalente si se usa PowerSync
@@ -280,9 +349,11 @@ Esto implica, cuando se planee producción real:
 2. Una vez desplegado ahí, confirmar el nombre exacto del servicio de
    Postgres en el dashboard/CLI de Railway para armar el
    `<servicio>.railway.internal`.
-3. Cambiar `PS_DATA_SOURCE_URI` a esa URI interna y quitar la dependencia
-   del proxy público (`*.proxy.rlwy.net`) para esta conexión.
+3. Cambiar `PS_DATA_SOURCE_URI` a esa URI interna; en ese punto `sslmode:
+   disable` sí sería aceptable para esa conexión específica (tráfico
+   intra-red de Railway, nunca sale a internet), aunque `verify-ca` con la
+   CA pinneada también seguiría funcionando ahí sin cambios.
 
-Mientras tanto (desarrollo/staging con PowerSync corriendo fuera de
-Railway), `sslmode: disable` sobre el proxy público es la configuración
-vigente y aceptada como trade-off temporal.
+No es una tarea bloqueante para producción: `verify-ca` ya resuelve el
+riesgo de fondo (cifrado + validación de certificado) mientras PowerSync
+corra fuera de Railway.
