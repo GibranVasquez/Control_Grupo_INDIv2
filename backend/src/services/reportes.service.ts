@@ -79,8 +79,8 @@ export async function concentradoCargas(
     // Maquinaria se comprueba por horas de operación, no por km (ver
     // tipo_unidad en vehiculos): estos tres campos vienen null en cargas de
     // vehículo normal y con valor en cargas de maquinaria.
-    horas_actual: numeroDesdeDecimal(c.horasActual),
-    horas_anterior: numeroDesdeDecimal(c.horasAnterior),
+    horas_actual: enteroDesdeDecimal(c.horasActual),
+    horas_anterior: enteroDesdeDecimal(c.horasAnterior),
     rendimiento_l_h: numeroDesdeDecimal(c.rendimientoLH),
     precio_por_litro: numeroDesdeDecimal(c.precioPorLitro) ?? 0,
     tipo_combustible: c.vehiculo.tipoCombustible,
