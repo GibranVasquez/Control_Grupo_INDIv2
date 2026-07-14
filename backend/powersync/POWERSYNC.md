@@ -10,23 +10,32 @@ local, `connect()`/`fetchCredentials()`): eso es un paso aparte de frontend.
 
 ## 1. Cómo levantar el servicio localmente
 
-### Prerrequisitos (una sola vez por entorno)
+### Prerrequisitos (ya completados una sola vez, sobre la base compartida de Railway — no hay que repetirlos al clonar el repo)
 
-1. **`wal_level = logical` en Postgres.** PowerSync replica por WAL lógico;
-   Postgres viene por default en `wal_level = replica`, que no alcanza.
+Un clon nuevo del repo **no necesita rehacer nada de esta subsección**: ya
+están aplicados sobre la base de Railway que comparte todo el equipo. Se
+documentan aquí solo como referencia de qué existe y por qué, y por si algún
+día se necesita otra base (otro entorno, otro Postgres) desde cero.
+
+1. **`wal_level = logical` en el Postgres de origen.** PowerSync replica por
+   WAL lógico; Postgres viene por default en `wal_level = replica`, que no
+   alcanza.
 
    ```sql
    ALTER SYSTEM SET wal_level = logical;
    ```
 
-   Este cambio **requiere reiniciar el servicio de Postgres** para tener
-   efecto (`sudo systemctl restart postgresql` en Arch). No pasa nada si se
-   ejecuta el `ALTER SYSTEM` antes del reinicio; solo no tiene efecto hasta
-   que se reinicia.
+   Este cambio requiere reiniciar el servicio de Postgres para tener efecto.
+   Ya está aplicado en la base de Railway (confirmado por la replicación
+   activa, ver sección 5). Si alguna vez se necesita repetir esto contra un
+   Postgres **local** (no es el caso de Railway, que administra esto por su
+   cuenta), sería `sudo systemctl restart postgresql` en Arch o el equivalente
+   de tu gestor de paquetes.
 
 2. **Rol de solo lectura + replicación, y la publicación lógica.** Ver
-   [`sql/prepare-source-db.sql`](./sql/prepare-source-db.sql) (ya ejecutado en
-   este entorno de desarrollo con un password generado aleatoriamente). Crea:
+   [`sql/prepare-source-db.sql`](./sql/prepare-source-db.sql) — **ya ejecutado
+   contra la base de Railway** con un password generado aleatoriamente (es la
+   credencial que va en `PS_DATA_SOURCE_URI`, ver punto 3). Crea:
    - `powersync_role`: rol con `REPLICATION` y `SELECT` en todas las tablas
      de `public` (incluye default privileges para tablas futuras). Nunca se
      reutiliza el rol de la app (`gi_app`) para esto — separa "quien escribe"
@@ -36,13 +45,10 @@ local, `connect()`/`fetchCredentials()`): eso es un paso aparte de frontend.
 
 3. **`backend/powersync/.env`** (gitignorado, no `.env.example`). Contiene:
    - `PS_DATA_SOURCE_URI`: conexión a `gi_control_combustible` con
-     `powersync_role`, apuntando a `127.0.0.1` (el Postgres real corre en el
-     host, no en un contenedor). El servicio `powersync` usa `network_mode:
-     host` en el compose para que esa conexión salga como `127.0.0.1` y
-     reutilice las reglas de `pg_hba.conf` que ya confían en localhost — así
-     no hay que exponer Postgres a la red bridge de Docker ni editar
-     `pg_hba.conf`/`listen_addresses` (que pertenecen al usuario de sistema
-     `postgres` y requerirían sudo).
+     `powersync_role`, apuntando **a Railway** (no a un Postgres local — ver
+     sección 5 para `sslmode`/CA pinneada, obligatorios contra Railway). El
+     compose usa la red bridge normal de Docker (no `network_mode: host`,
+     que solo aplicaría si el origen fuera un Postgres en el mismo host).
    - Evita passwords con `/` o `+` en `powersync_role` y en `pg-storage`: al
      ir dentro de una URI de conexión, esos caracteres rompen el parseo (por
      eso `sql/prepare-source-db.sql` sugiere generarlas con

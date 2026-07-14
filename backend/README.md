@@ -28,6 +28,80 @@ backend/
     utils/
 ```
 
+## Cómo correr esto en local (de cero)
+
+Prerrequisitos: Node.js (usado en desarrollo: v26; no hay `engines` fijado en
+`package.json`, versiones recientes de Node 18+ deberían funcionar igual) y
+PostgreSQL corriendo en local o accesible por red. Docker es opcional, solo
+si además quieres levantar PowerSync (paso 7).
+
+1. **Base de datos.** Crea un rol y una base de datos vacíos para la app
+   (ejemplo con un Postgres local; ajusta si usas otro):
+   ```sql
+   create role gi_app login password 'TU-PASSWORD';
+   create database gi_control_combustible owner gi_app;
+   ```
+   Aplica el esquema con el script SQL puro del proyecto — **no** se usa
+   `prisma migrate`:
+   ```bash
+   psql "postgresql://gi_app:TU-PASSWORD@localhost:5432/gi_control_combustible" \
+     -f prisma/migracion_grupo_indi.sql
+   ```
+   (ver el encabezado del propio archivo para el caso de un proyecto nuevo
+   sin `schema.prisma` todavía — no es este caso).
+
+2. **Variables de entorno.**
+   ```bash
+   cp .env.example .env
+   ```
+   Rellena al menos `DATABASE_URL` (la base del paso 1) y `JWT_SECRET`
+   (cualquier string en desarrollo). El resto (`R2_*`, `SENTRY_DSN`,
+   `POWERSYNC_JWT_*`) son opcionales para desarrollo local sin esas
+   integraciones — ver los comentarios de cada variable en `.env.example`.
+
+3. **Dependencias y cliente Prisma.**
+   ```bash
+   npm install
+   npx prisma generate
+   ```
+   (no hay hook `postinstall` que corra `prisma generate` automáticamente;
+   hazlo a mano tras cada `npm install` si cambiaste `schema.prisma`.)
+
+4. **Datos semilla.**
+   ```bash
+   npm run seed
+   ```
+   Crea (o actualiza, es idempotente vía `upsert`) 3 perfiles de prueba:
+   `EMP-1001` (chofer), `EMP-2001` (administrativo), `EMP-3001` (finanzas),
+   todos con password `1234`. Nota: estos 3 usuarios semilla tienen guion en
+   el usuario (`EMP-1001`), que ya **no** cumpliría la regex de formato que
+   ahora exige `POST /auth/registro-chofer` para cuentas nuevas
+   (`^[a-zA-Z0-9._]+$`, ver `src/utils/validacion.ts#esUsuarioValido`) — no
+   es una inconsistencia: el seed inserta directo vía Prisma sin pasar por
+   esa validación (que solo corre en la creación por HTTP), y el login nunca
+   revalida el formato de una cuenta ya existente, solo busca por el valor
+   guardado tal cual.
+
+5. **Arrancar el servidor.**
+   ```bash
+   npm run dev
+   curl http://localhost:4000/health   # {"status":"ok"}
+   ```
+
+6. **Verificación.**
+   ```bash
+   npx tsc --noEmit
+   npm test
+   npm run lint
+   ```
+
+7. **(Opcional) PowerSync self-hosted**, para sincronización offline-first —
+   ver [`powersync/POWERSYNC.md`](./powersync/POWERSYNC.md). Requiere Docker
+   y credenciales de conexión al Postgres de Railway compartido por el
+   equipo (pídelas a quien administre el proyecto; no se generan
+   localmente, y los prerrequisitos de PowerSync sobre esa base ya están
+   aplicados una sola vez — ver sección 1 de ese documento).
+
 ## Contrato con el frontend
 
 El frontend (`../frontend/`) ya **no** consume esto vía `supabase_flutter`.

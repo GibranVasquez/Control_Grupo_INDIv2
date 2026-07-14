@@ -8,7 +8,15 @@
 -- Cómo correrlo:
 --   psql "postgresql://usuario:password@host:puerto/basededatos" -f migracion_grupo_indi.sql
 --   o pegarlo directo en el cliente SQL de Railway/Render.
--- Después de correrlo: npx prisma db pull && npx prisma generate
+-- Después de correrlo, en un proyecto NUEVO (repo sin schema.prisma todavía):
+--   npx prisma db pull && npx prisma generate
+-- En un clon normal de este repo (schema.prisma ya existe y está mantenido a
+-- mano, con @map en campos renombrados respecto al nombre de columna, ej.
+-- `usuario` mapeado a la columna numero_empleado): SOLO
+--   npx prisma generate
+-- NO vuelvas a correr `prisma db pull` — reintrospeccionaría la base y
+-- sobreescribiría schema.prisma con los nombres de columna crudos,
+-- perdiendo esos renombres manuales.
 -- =====================================================================
 -- Nota de mantenimiento (2026-07-10): las 4 vistas que dependían de la
 -- tabla "cargas" (vista_consumo_semanal_por_obra, vista_consumo_semanal_global,
