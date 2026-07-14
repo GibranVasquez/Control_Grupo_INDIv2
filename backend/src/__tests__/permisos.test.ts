@@ -13,13 +13,13 @@ const OBRA_LOS_PINOS_ID = "a1000000-0000-0000-0000-000000000001";
 const OBRA_PLAZA_NORTE_ID = "a1000000-0000-0000-0000-000000000002";
 const VEHICULO_OBRA_PLAZA_NORTE_ID = "b2000000-0000-0000-0000-000000000003";
 
-async function login(numeroEmpleado: string): Promise<string> {
+async function login(usuario: string): Promise<string> {
   const respuesta = await request(app)
     .post("/auth/login")
-    .send({ numero_empleado: numeroEmpleado, password: "1234" });
+    .send({ numero_empleado: usuario, password: "1234" });
   if (respuesta.status !== 200) {
     throw new Error(
-      `No se pudo iniciar sesión con ${numeroEmpleado}: ${respuesta.status} ${JSON.stringify(respuesta.body)}`
+      `No se pudo iniciar sesión con ${usuario}: ${respuesta.status} ${JSON.stringify(respuesta.body)}`
     );
   }
   return respuesta.body.token as string;

@@ -57,11 +57,11 @@ function firmarToken(perfil: Perfil): string {
 }
 
 export async function iniciarSesion(
-  numeroEmpleado: string,
+  usuario: string,
   password: string
 ): Promise<ResultadoLogin> {
   const perfil = await prisma.perfil.findUnique({
-    where: { numeroEmpleado },
+    where: { usuario },
   });
 
   // bcrypt.compare corre siempre, exista o no el perfil, contra un hash real
@@ -102,9 +102,9 @@ export interface DatosRegistroChofer {
 
 /**
  * Autoregistro público de chofer (`POST /auth/registro-chofer`, ver
- * auth.routes.ts): a diferencia de perfil.service.ts#crear (solo
- * administrativo/finanzas, requiere obra_id), este endpoint no exige
- * autenticación ni obra — el chofer queda activo de inmediato pero sin
+ * auth.routes.ts): a diferencia de perfil.service.ts#actualizar (solo
+ * administrativo/finanzas, edita un chofer ya existente), este endpoint no
+ * exige autenticación ni obra — el chofer queda activo de inmediato pero sin
  * obra_id/vehiculo_id asignados (nulos) hasta que un administrativo lo
  * vincule a una obra y unidad reales desde Choferes/Usuarios.
  *
@@ -144,7 +144,7 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
   try {
     perfil = await prisma.perfil.create({
       data: {
-        numeroEmpleado: datos.numero_empleado as string,
+        usuario: datos.numero_empleado as string,
         passwordHash,
         nombreCompleto: datos.nombre_completo as string,
         rol: "chofer",

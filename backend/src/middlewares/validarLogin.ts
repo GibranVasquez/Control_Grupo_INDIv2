@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
-const LONGITUD_MAXIMA_NUMERO_EMPLEADO = 100;
+const LONGITUD_MAXIMA_USUARIO = 100;
 const LONGITUD_MAXIMA_PASSWORD = 200;
 
 function esStringNoVacia(valor: unknown, longitudMaxima: number): valor is string {
@@ -9,9 +9,9 @@ function esStringNoVacia(valor: unknown, longitudMaxima: number): valor is strin
 
 export function validarLogin(req: Request, res: Response, next: NextFunction): void {
   const body = req.body ?? {};
-  const { numero_empleado, password } = body;
+  const { numero_empleado: usuario, password } = body;
 
-  if (!esStringNoVacia(numero_empleado, LONGITUD_MAXIMA_NUMERO_EMPLEADO)) {
+  if (!esStringNoVacia(usuario, LONGITUD_MAXIMA_USUARIO)) {
     res.status(400).json({ error: "numero_empleado es requerido y debe ser un texto válido." });
     return;
   }

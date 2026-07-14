@@ -36,24 +36,24 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const resultados: { numeroEmpleado: string; passwordNueva: string }[] = [];
+  const resultados: { usuario: string; passwordNueva: string }[] = [];
 
-  for (const numeroEmpleado of NUMEROS_EMPLEADO) {
-    const perfil = await prisma.perfil.findUnique({ where: { numeroEmpleado } });
+  for (const usuario of NUMEROS_EMPLEADO) {
+    const perfil = await prisma.perfil.findUnique({ where: { usuario } });
     if (!perfil) {
-      console.warn(`Aviso: no existe un perfil con numero_empleado=${numeroEmpleado}, se omite.`);
+      console.warn(`Aviso: no existe un perfil con numero_empleado=${usuario}, se omite.`);
       continue;
     }
 
     const passwordNueva = generarPasswordSegura();
     const passwordHash = await bcrypt.hash(passwordNueva, 10);
     await prisma.perfil.update({ where: { id: perfil.id }, data: { passwordHash } });
-    resultados.push({ numeroEmpleado, passwordNueva });
+    resultados.push({ usuario, passwordNueva });
   }
 
   console.log("\n=== Contraseñas nuevas (guárdalas ahora; no se van a volver a mostrar) ===");
-  for (const { numeroEmpleado, passwordNueva } of resultados) {
-    console.log(`${numeroEmpleado}: ${passwordNueva}`);
+  for (const { usuario, passwordNueva } of resultados) {
+    console.log(`${usuario}: ${passwordNueva}`);
   }
   console.log("===========================================================================\n");
 }

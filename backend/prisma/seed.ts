@@ -22,21 +22,21 @@ async function main() {
 
   const perfiles = [
     {
-      numeroEmpleado: "EMP-1001",
+      usuario: "EMP-1001",
       nombreCompleto: "Juan Pérez",
       rol: "chofer" as const,
       obraId: OBRA_LOS_PINOS_ID,
       vehiculoId: VEHICULO_FORD_F150_ID,
     },
     {
-      numeroEmpleado: "EMP-2001",
+      usuario: "EMP-2001",
       nombreCompleto: "María López",
       rol: "administrativo" as const,
       obraId: OBRA_LOS_PINOS_ID,
       vehiculoId: null,
     },
     {
-      numeroEmpleado: "EMP-3001",
+      usuario: "EMP-3001",
       nombreCompleto: "Carlos Ruiz",
       rol: "finanzas" as const,
       obraId: null,
@@ -46,7 +46,7 @@ async function main() {
 
   for (const datos of perfiles) {
     const perfil = await prisma.perfil.upsert({
-      where: { numeroEmpleado: datos.numeroEmpleado },
+      where: { usuario: datos.usuario },
       update: {
         nombreCompleto: datos.nombreCompleto,
         rol: datos.rol,
@@ -56,7 +56,7 @@ async function main() {
         activo: true,
       },
       create: {
-        numeroEmpleado: datos.numeroEmpleado,
+        usuario: datos.usuario,
         nombreCompleto: datos.nombreCompleto,
         rol: datos.rol,
         obraId: datos.obraId,
@@ -64,7 +64,7 @@ async function main() {
         passwordHash,
       },
     });
-    console.log(`Perfil listo: ${perfil.numeroEmpleado} (${perfil.rol})`);
+    console.log(`Perfil listo: ${perfil.usuario} (${perfil.rol})`);
   }
 }
 

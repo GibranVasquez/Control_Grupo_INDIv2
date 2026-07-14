@@ -23,7 +23,7 @@ export function serializarPerfil(perfil: Perfil): PerfilPublico {
   return {
     id: perfil.id,
     auth_user_id: perfil.authUserId,
-    numero_empleado: perfil.numeroEmpleado,
+    numero_empleado: perfil.usuario,
     nombre_completo: perfil.nombreCompleto,
     rol: perfil.rol,
     obra_id: perfil.obraId,
