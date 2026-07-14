@@ -16,7 +16,7 @@ const VEHICULO_OBRA_PLAZA_NORTE_ID = "b2000000-0000-0000-0000-000000000003";
 async function login(usuario: string): Promise<string> {
   const respuesta = await request(app)
     .post("/auth/login")
-    .send({ numero_empleado: usuario, password: "1234" });
+    .send({ usuario, password: "1234" });
   if (respuesta.status !== 200) {
     throw new Error(
       `No se pudo iniciar sesión con ${usuario}: ${respuesta.status} ${JSON.stringify(respuesta.body)}`
@@ -33,7 +33,7 @@ describe("permisos por rol", () => {
   it("login con contraseña incorrecta responde 401", async () => {
     const respuesta = await request(app)
       .post("/auth/login")
-      .send({ numero_empleado: "EMP-1001", password: "contraseña-incorrecta" });
+      .send({ usuario: "EMP-1001", password: "contraseña-incorrecta" });
     expect(respuesta.status).toBe(401);
   });
 

@@ -9,10 +9,10 @@ function esStringNoVacia(valor: unknown, longitudMaxima: number): valor is strin
 
 export function validarLogin(req: Request, res: Response, next: NextFunction): void {
   const body = req.body ?? {};
-  const { numero_empleado: usuario, password } = body;
+  const { usuario, password } = body;
 
   if (!esStringNoVacia(usuario, LONGITUD_MAXIMA_USUARIO)) {
-    res.status(400).json({ error: "numero_empleado es requerido y debe ser un texto válido." });
+    res.status(400).json({ error: "usuario es requerido y debe ser un texto válido." });
     return;
   }
 

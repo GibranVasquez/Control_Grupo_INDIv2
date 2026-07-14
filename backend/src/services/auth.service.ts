@@ -13,7 +13,7 @@ import {
   normalizarCorreo,
 } from "../utils/validacion";
 
-const MENSAJE_CREDENCIALES_INVALIDAS = "Número de empleado o contraseña incorrectos.";
+const MENSAJE_CREDENCIALES_INVALIDAS = "Usuario o contraseña incorrectos.";
 const MENSAJE_CUENTA_DESACTIVADA = "Esta cuenta está desactivada. Contacta a un administrador.";
 
 /**
@@ -100,7 +100,7 @@ const RONDAS_BCRYPT = 10;
 
 export interface DatosRegistroChofer {
   nombre_completo: unknown;
-  numero_empleado: unknown;
+  usuario: unknown;
   password: unknown;
   area?: unknown;
   correo?: unknown;
@@ -125,7 +125,7 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
   if (!esStringNoVacia(datos.nombre_completo, 200)) {
     throw new AppError(400, "nombre_completo es requerido y debe ser un texto válido.");
   }
-  if (!esUsuarioValido(datos.numero_empleado)) {
+  if (!esUsuarioValido(datos.usuario)) {
     throw new AppError(
       400,
       "usuario es requerido, debe tener entre 3 y 30 caracteres, y solo puede contener letras, números, punto y guión bajo."
@@ -154,7 +154,7 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
   try {
     perfil = await prisma.perfil.create({
       data: {
-        usuario: datos.numero_empleado as string,
+        usuario: datos.usuario as string,
         passwordHash,
         nombreCompleto: datos.nombre_completo as string,
         rol: "chofer",
@@ -166,18 +166,26 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      // numero_empleado sí se hace eco (no es sensible); correo NO, para no
+      // usuario sí se hace eco (no es sensible); correo NO, para no
       // convertir este endpoint público en un oráculo de "¿este correo ya
       // está registrado?" (mismo criterio anti-enumeración que
-      // perfil.service.ts#crear usa para vehiculo_id de otra obra).
+      // perfil.service.ts#actualizar usa para vehiculo_id de otra obra).
+      //
+      // "numero_empleado" aquí es el nombre de la COLUMNA física en Postgres
+      // (distinto ya del campo `usuario` del wire/Prisma desde la Etapa 3.5
+      // del rename) — pendiente de actualizar a "usuario" cuando se aplique
+      // el ALTER TABLE de la Etapa 4. Nota: en la práctica este chequeo no
+      // se dispara nunca con el driver adapter actual (@prisma/adapter-pg),
+      // que no llena `error.meta.target` — ver hallazgo anotado aparte, no
+      // se corrige aquí.
       const campos = (error.meta?.target as string[] | undefined) ?? [];
-      // Solo se hace eco del numero_empleado cuando el conflicto es
-      // inequívocamente ese campo; cualquier otro caso (correo, o formato de
-      // error inesperado) usa el mensaje genérico, para no arriesgarse a
-      // confirmar la existencia de un correo por una mala interpretación del
-      // error de Postgres.
+      // Solo se hace eco del usuario cuando el conflicto es inequívocamente
+      // ese campo; cualquier otro caso (correo, o formato de error
+      // inesperado) usa el mensaje genérico, para no arriesgarse a confirmar
+      // la existencia de un correo por una mala interpretación del error de
+      // Postgres.
       if (campos.length === 1 && campos[0] === "numero_empleado") {
-        throw new AppError(409, `Ya existe un usuario con el número de empleado "${datos.numero_empleado}".`);
+        throw new AppError(409, `Ya existe una cuenta con el usuario "${datos.usuario}".`);
       }
       throw new AppError(409, "No se pudo completar el registro con los datos proporcionados.");
     }

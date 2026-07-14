@@ -63,9 +63,8 @@ export interface DatosActualizarPerfil {
  * obra, vehículo) — incluye lo que antes era "asignación" (obra_id/
  * vehiculo_id) para completar el alta de un chofer autoregistrado (POST
  * /auth/registro-chofer, ver auth.service.ts#registrarChofer), que nace sin
- * obra ni vehículo. rol y numero_empleado no son editables por esta vía:
- * rol es fijo, y numero_empleado es el identificador con el que el chofer
- * inicia sesión.
+ * obra ni vehículo. rol y usuario no son editables por esta vía: rol es
+ * fijo, y usuario es el identificador con el que el chofer inicia sesión.
  *
  * Solo se tocan los campos presentes en `datos` (aunque vengan en `null`,
  * para poder borrar correo/area/edad/vehiculo_id a propósito); un campo

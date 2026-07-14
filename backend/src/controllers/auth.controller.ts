@@ -6,7 +6,7 @@ import { AppError } from "../utils/AppError";
 // async al errorHandler, así que no hace falta try/catch aquí.
 
 export async function login(req: Request, res: Response): Promise<void> {
-  const { numero_empleado: usuario, password } = req.body;
+  const { usuario, password } = req.body;
   const resultado = await iniciarSesion(usuario, password);
   res.json(resultado);
 }

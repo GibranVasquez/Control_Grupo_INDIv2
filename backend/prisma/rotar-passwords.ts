@@ -41,7 +41,7 @@ async function main() {
   for (const usuario of NUMEROS_EMPLEADO) {
     const perfil = await prisma.perfil.findUnique({ where: { usuario } });
     if (!perfil) {
-      console.warn(`Aviso: no existe un perfil con numero_empleado=${usuario}, se omite.`);
+      console.warn(`Aviso: no existe un perfil con usuario=${usuario}, se omite.`);
       continue;
     }
 

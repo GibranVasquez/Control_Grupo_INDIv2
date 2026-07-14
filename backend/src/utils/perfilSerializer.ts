@@ -8,7 +8,7 @@ import { Perfil } from "@prisma/client";
 export interface PerfilPublico {
   id: string;
   auth_user_id: string;
-  numero_empleado: string;
+  usuario: string;
   nombre_completo: string;
   rol: string;
   obra_id: string | null;
@@ -23,7 +23,7 @@ export function serializarPerfil(perfil: Perfil): PerfilPublico {
   return {
     id: perfil.id,
     auth_user_id: perfil.authUserId,
-    numero_empleado: perfil.usuario,
+    usuario: perfil.usuario,
     nombre_completo: perfil.nombreCompleto,
     rol: perfil.rol,
     obra_id: perfil.obraId,
