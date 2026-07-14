@@ -15,3 +15,12 @@ export async function crear(req: Request, res: Response): Promise<void> {
   const perfil = await perfilService.crear(req.user!, req.body ?? {});
   res.status(201).json({ perfil });
 }
+
+export async function actualizarAsignacion(req: Request, res: Response): Promise<void> {
+  const perfil = await perfilService.actualizarAsignacion(
+    req.user!,
+    paramString(req.params.id),
+    req.body ?? {}
+  );
+  res.json({ perfil });
+}

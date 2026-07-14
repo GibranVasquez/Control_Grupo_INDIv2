@@ -15,3 +15,12 @@ perfilRouter.put("/:id/activo", permitirRoles("administrativo", "finanzas"), per
 // por este endpoint: esos roles ya tienen su usuario y contraseña exclusivo (ver
 // perfil.service.ts crear()).
 perfilRouter.post("/", permitirRoles("administrativo", "finanzas"), perfilController.crear);
+
+// Asigna (o reasigna) obra_id/vehiculo_id de un chofer existente — ej. completar
+// el alta de un chofer autoregistrado (POST /auth/registro-chofer), que nace sin
+// obra ni vehículo. Solo aplica a perfiles con rol chofer, ver perfil.service.ts.
+perfilRouter.put(
+  "/:id/asignacion",
+  permitirRoles("administrativo", "finanzas"),
+  perfilController.actualizarAsignacion
+);

@@ -131,3 +131,70 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Pr
     throw error;
   }
 }
+
+export interface DatosAsignacion {
+  obra_id: unknown;
+  vehiculo_id?: unknown;
+}
+
+/**
+ * Asigna/reasigna obra_id y vehiculo_id de un chofer existente — ej. completar
+ * el alta de un chofer que se autoregistró (POST /auth/registro-chofer, ver
+ * auth.service.ts#registrarChofer) y nace sin obra ni vehículo asignados.
+ */
+export async function actualizarAsignacion(
+  user: AuthTokenPayload,
+  perfilId: string,
+  datos: DatosAsignacion
+): Promise<PerfilPublico> {
+  if (!esStringNoVacia(datos.obra_id, 100)) {
+    throw new AppError(400, "obra_id es requerido y debe ser un texto válido.");
+  }
+  if (
+    datos.vehiculo_id !== undefined &&
+    datos.vehiculo_id !== null &&
+    !esStringNoVacia(datos.vehiculo_id, 100)
+  ) {
+    throw new AppError(400, "vehiculo_id debe ser un texto válido o null.");
+  }
+
+  const perfil = await prisma.perfil.findUnique({ where: { id: perfilId } });
+  if (!perfil) {
+    throw new AppError(404, "Perfil no encontrado.");
+  }
+  if (perfil.rol !== "chofer") {
+    throw new AppError(400, "Solo se puede asignar obra/vehículo a un perfil con rol chofer.");
+  }
+
+  // administrativo solo puede asignar dentro de su propia obra.
+  asegurarAccesoObra(user, datos.obra_id as string);
+  // Si el perfil ya pertenecía a otra obra, también se exige acceso a esa obra
+  // actual: evita que un administrativo mueva un chofer de otra obra hacia la
+  // suya (finanzas, sin obra propia, no tiene esta restricción).
+  if (perfil.obraId !== null) {
+    asegurarAccesoObra(user, perfil.obraId);
+  }
+
+  const obra = await prisma.obra.findUnique({ where: { id: datos.obra_id as string } });
+  if (!obra) {
+    throw new AppError(400, "obra_id no corresponde a una obra existente.");
+  }
+
+  if (datos.vehiculo_id) {
+    const vehiculo = await prisma.vehiculo.findUnique({ where: { id: datos.vehiculo_id as string } });
+    // Mismo criterio anti-enumeración que crear(): un solo mensaje para "no
+    // existe" y "existe pero es de otra obra".
+    if (!vehiculo || vehiculo.obraId !== datos.obra_id) {
+      throw new AppError(400, "vehiculo_id no corresponde a un vehículo válido para esta obra.");
+    }
+  }
+
+  const actualizado = await prisma.perfil.update({
+    where: { id: perfilId },
+    data: {
+      obraId: datos.obra_id as string,
+      vehiculoId: (datos.vehiculo_id as string | undefined) ?? null,
+    },
+  });
+  return serializarPerfil(actualizado);
+}
