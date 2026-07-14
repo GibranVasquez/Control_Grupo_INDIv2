@@ -1,3 +1,9 @@
+> **NOTAS INTERNAS DE DESARROLLO — no forma parte de la entrega al cliente.**
+> Bitácora de pruebas manuales ad hoc contra un entorno de desarrollo local
+> (usuarios semilla, base local). No son una suite automatizada ni
+> documentación de producto; se conservan como referencia de qué se probó y
+> qué bugs se encontraron y corrigieron en esa fecha.
+
 # Pruebas de escenarios reales (backend + PowerSync + frontend end-to-end)
 
 Fecha: 2026-07-10. Entorno: backend Express local (`npm run dev`, puerto 4000),
