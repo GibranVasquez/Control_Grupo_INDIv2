@@ -4,7 +4,7 @@ import { Perfil, Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { serializarPerfil, PerfilPublico } from "../utils/perfilSerializer";
-import { esStringNoVacia } from "../utils/validacion";
+import { esCorreoValido, esEnteroNoNegativo, esStringNoVacia, normalizarCorreo } from "../utils/validacion";
 
 const MENSAJE_CREDENCIALES_INVALIDAS = "Número de empleado o contraseña incorrectos.";
 const MENSAJE_CUENTA_DESACTIVADA = "Esta cuenta está desactivada. Contacta a un administrador.";
@@ -96,6 +96,8 @@ export interface DatosRegistroChofer {
   numero_empleado: unknown;
   password: unknown;
   area?: unknown;
+  correo?: unknown;
+  edad?: unknown;
 }
 
 /**
@@ -125,6 +127,16 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
   if (datos.area !== undefined && datos.area !== null && !esStringNoVacia(datos.area, 500)) {
     throw new AppError(400, "area debe ser un texto válido.");
   }
+  let correo: string | undefined;
+  if (datos.correo !== undefined && datos.correo !== null) {
+    if (!esCorreoValido(datos.correo)) {
+      throw new AppError(400, "correo debe ser un correo electrónico válido.");
+    }
+    correo = normalizarCorreo(datos.correo);
+  }
+  if (datos.edad !== undefined && datos.edad !== null && !esEnteroNoNegativo(datos.edad)) {
+    throw new AppError(400, "edad debe ser un número entero no negativo.");
+  }
 
   const passwordHash = await bcrypt.hash(datos.password as string, RONDAS_BCRYPT);
 
@@ -137,12 +149,27 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
         nombreCompleto: datos.nombre_completo as string,
         rol: "chofer",
         area: (datos.area as string | undefined) ?? null,
+        correo: correo ?? null,
+        edad: (datos.edad as number | undefined) ?? null,
         activo: true,
       },
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      throw new AppError(409, `Ya existe un usuario con el número de empleado "${datos.numero_empleado}".`);
+      // numero_empleado sí se hace eco (no es sensible); correo NO, para no
+      // convertir este endpoint público en un oráculo de "¿este correo ya
+      // está registrado?" (mismo criterio anti-enumeración que
+      // perfil.service.ts#crear usa para vehiculo_id de otra obra).
+      const campos = (error.meta?.target as string[] | undefined) ?? [];
+      // Solo se hace eco del numero_empleado cuando el conflicto es
+      // inequívocamente ese campo; cualquier otro caso (correo, o formato de
+      // error inesperado) usa el mensaje genérico, para no arriesgarse a
+      // confirmar la existencia de un correo por una mala interpretación del
+      // error de Postgres.
+      if (campos.length === 1 && campos[0] === "numero_empleado") {
+        throw new AppError(409, `Ya existe un usuario con el número de empleado "${datos.numero_empleado}".`);
+      }
+      throw new AppError(409, "No se pudo completar el registro con los datos proporcionados.");
     }
     throw error;
   }

@@ -59,6 +59,17 @@ create table obras (
 --    ya no referencia una tabla externa de Supabase Auth — el login y las
 --    contraseñas ahora los maneja este mismo backend (ver password_hash).
 -- ---------------------------------------------------------------------
+-- Nota de mantenimiento (2026-07-14): se agregaron correo (unique, nullable)
+-- y edad (nullable) — antes ambos vivían concatenados como texto libre dentro
+-- de area en los perfiles autoregistrados (POST /auth/registro-chofer, ver
+-- auth.service.ts#registrarChofer), sin poder consultarse ni validarse por
+-- separado. correo se normaliza a minúsculas antes de guardar (el unique
+-- constraint es case-sensitive a nivel de Postgres, así que sin esto
+-- "Juan@x.com" y "juan@x.com" no chocarían entre sí pese a ser el mismo
+-- correo). Los registros existentes con datos en area no se migraron
+-- automáticamente (ver PRUEBAS.md / backfill puntual documentado aparte).
+-- (ALTER TABLE perfiles ADD COLUMN correo varchar(200) UNIQUE;
+--  ALTER TABLE perfiles ADD COLUMN edad integer;)
 create table perfiles (
   id uuid primary key default uuid_generate_v4(),
   auth_user_id uuid unique not null default uuid_generate_v4(),
@@ -69,6 +80,8 @@ create table perfiles (
   obra_id uuid references obras(id),  -- obra asignada (null para 'finanzas', que ve todas)
   vehiculo_id uuid,  -- vehículo asignado por defecto (solo aplica a choferes); FK se agrega tras crear vehiculos
   area text,  -- departamento o función del trabajador (ej. Mantenimiento, Operaciones); distinto de la obra
+  correo varchar(200) unique,  -- normalizado a minúsculas por el backend antes de guardar
+  edad integer,
   activo boolean not null default true,
   creado_en timestamptz not null default now()
 );

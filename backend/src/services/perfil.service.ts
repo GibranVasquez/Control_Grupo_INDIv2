@@ -4,7 +4,7 @@ import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { asegurarAccesoObra } from "../utils/accesoObra";
 import { serializarPerfil, PerfilPublico } from "../utils/perfilSerializer";
-import { esStringNoVacia } from "../utils/validacion";
+import { esCorreoValido, esEnteroNoNegativo, esStringNoVacia, normalizarCorreo } from "../utils/validacion";
 import { AuthTokenPayload } from "../types/auth";
 
 /**
@@ -59,6 +59,8 @@ export interface DatosCrearPerfil {
   obra_id: unknown;
   vehiculo_id?: unknown;
   area?: unknown;
+  correo?: unknown;
+  edad?: unknown;
 }
 
 /**
@@ -84,6 +86,16 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Pr
   }
   if (datos.area !== undefined && datos.area !== null && !esStringNoVacia(datos.area, 100)) {
     throw new AppError(400, "area debe ser un texto válido.");
+  }
+  let correo: string | undefined;
+  if (datos.correo !== undefined && datos.correo !== null) {
+    if (!esCorreoValido(datos.correo)) {
+      throw new AppError(400, "correo debe ser un correo electrónico válido.");
+    }
+    correo = normalizarCorreo(datos.correo);
+  }
+  if (datos.edad !== undefined && datos.edad !== null && !esEnteroNoNegativo(datos.edad)) {
+    throw new AppError(400, "edad debe ser un número entero no negativo.");
   }
 
   // administrativo solo puede dar de alta choferes en su propia obra; finanzas en cualquiera.
@@ -116,6 +128,8 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Pr
         obraId: datos.obra_id as string,
         vehiculoId: (datos.vehiculo_id as string | undefined) ?? null,
         area: (datos.area as string | undefined) ?? null,
+        correo: correo ?? null,
+        edad: (datos.edad as number | undefined) ?? null,
       },
     });
     return serializarPerfil(perfil);

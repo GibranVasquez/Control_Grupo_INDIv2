@@ -26,6 +26,19 @@ export function esUuidValido(valor: unknown): valor is string {
   return typeof valor === "string" && REGEX_UUID.test(valor);
 }
 
+const REGEX_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function esCorreoValido(valor: unknown): valor is string {
+  return esStringNoVacia(valor, 200) && REGEX_CORREO.test(valor.trim());
+}
+
+/** Normaliza a minúsculas antes de guardar/comparar: el unique constraint de
+ * `correo` en Postgres es case-sensitive, así que sin esto "Juan@x.com" y
+ * "juan@x.com" no chocarían entre sí pese a ser el mismo correo. */
+export function normalizarCorreo(correo: string): string {
+  return correo.trim().toLowerCase();
+}
+
 export function valorDeQuery(valor: unknown): string | undefined {
   return typeof valor === "string" && valor.length > 0 ? valor : undefined;
 }

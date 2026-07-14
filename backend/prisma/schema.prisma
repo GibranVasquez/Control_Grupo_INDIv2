@@ -128,6 +128,8 @@ model Perfil {
   obraId         String?    @map("obra_id") @db.Uuid
   vehiculoId     String?    @map("vehiculo_id") @db.Uuid
   area           String?
+  correo         String?    @unique @db.VarChar(200)
+  edad           Int?
   activo         Boolean    @default(true)
   creadoEn       DateTime   @default(now()) @map("creado_en") @db.Timestamptz(6)
 
