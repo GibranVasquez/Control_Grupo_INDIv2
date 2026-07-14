@@ -39,6 +39,32 @@ export function normalizarCorreo(correo: string): string {
   return correo.trim().toLowerCase();
 }
 
+const LONGITUD_MINIMA_USUARIO = 3;
+const LONGITUD_MAXIMA_USUARIO = 30;
+const REGEX_USUARIO = /^[a-zA-Z0-9._]+$/;
+
+/**
+ * Regla de formato para `usuario` (antes `numero_empleado`): solo letras,
+ * números, punto y guión bajo. Aplica ÚNICAMENTE a la creación de una cuenta
+ * nueva (autoregistro) — el login busca por el valor tal cual está guardado,
+ * sin re-validar el formato, para no bloquear cuentas ya existentes con un
+ * formato distinto (ej. "EMP-1001", con guión).
+ */
+export function esUsuarioValido(valor: unknown): valor is string {
+  return (
+    typeof valor === "string" &&
+    valor.length >= LONGITUD_MINIMA_USUARIO &&
+    valor.length <= LONGITUD_MAXIMA_USUARIO &&
+    REGEX_USUARIO.test(valor)
+  );
+}
+
+const LONGITUD_MINIMA_PASSWORD = 8;
+
+export function esPasswordValida(valor: unknown): valor is string {
+  return typeof valor === "string" && valor.length >= LONGITUD_MINIMA_PASSWORD;
+}
+
 export function valorDeQuery(valor: unknown): string | undefined {
   return typeof valor === "string" && valor.length > 0 ? valor : undefined;
 }

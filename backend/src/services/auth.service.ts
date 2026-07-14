@@ -4,7 +4,14 @@ import { Perfil, Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { serializarPerfil, PerfilPublico } from "../utils/perfilSerializer";
-import { esCorreoValido, esEnteroNoNegativo, esStringNoVacia, normalizarCorreo } from "../utils/validacion";
+import {
+  esCorreoValido,
+  esEnteroNoNegativo,
+  esPasswordValida,
+  esStringNoVacia,
+  esUsuarioValido,
+  normalizarCorreo,
+} from "../utils/validacion";
 
 const MENSAJE_CREDENCIALES_INVALIDAS = "Número de empleado o contraseña incorrectos.";
 const MENSAJE_CUENTA_DESACTIVADA = "Esta cuenta está desactivada. Contacta a un administrador.";
@@ -118,11 +125,14 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
   if (!esStringNoVacia(datos.nombre_completo, 200)) {
     throw new AppError(400, "nombre_completo es requerido y debe ser un texto válido.");
   }
-  if (!esStringNoVacia(datos.numero_empleado, 100)) {
-    throw new AppError(400, "numero_empleado es requerido y debe ser un texto válido.");
+  if (!esUsuarioValido(datos.numero_empleado)) {
+    throw new AppError(
+      400,
+      "usuario es requerido, debe tener entre 3 y 30 caracteres, y solo puede contener letras, números, punto y guión bajo."
+    );
   }
-  if (!esStringNoVacia(datos.password, 200) || (datos.password as string).length < 4) {
-    throw new AppError(400, "password es requerido y debe tener al menos 4 caracteres.");
+  if (!esPasswordValida(datos.password)) {
+    throw new AppError(400, "password es requerido y debe tener al menos 8 caracteres.");
   }
   if (datos.area !== undefined && datos.area !== null && !esStringNoVacia(datos.area, 500)) {
     throw new AppError(400, "area debe ser un texto válido.");
