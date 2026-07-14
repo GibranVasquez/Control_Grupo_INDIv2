@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
@@ -50,13 +49,9 @@ export async function actualizarActivo(
   return serializarPerfil(actualizado);
 }
 
-const RONDAS_BCRYPT = 10;
-
-export interface DatosCrearPerfil {
-  nombre_completo: unknown;
-  numero_empleado: unknown;
-  password: unknown;
+export interface DatosActualizarPerfil {
   obra_id: unknown;
+  nombre_completo?: unknown;
   vehiculo_id?: unknown;
   area?: unknown;
   correo?: unknown;
@@ -64,112 +59,26 @@ export interface DatosCrearPerfil {
 }
 
 /**
- * Alta de un chofer (única forma en la que un administrativo/finanzas puede dar de alta
- * un usuario, ver perfil.routes.ts): administrativo/finanzas ya tienen su propio usuario
- * y contraseña, dados de alta directo en la base de datos, no por este endpoint.
+ * Edición parcial de un chofer ya existente (nombre, correo, edad, area,
+ * obra, vehículo) — incluye lo que antes era "asignación" (obra_id/
+ * vehiculo_id) para completar el alta de un chofer autoregistrado (POST
+ * /auth/registro-chofer, ver auth.service.ts#registrarChofer), que nace sin
+ * obra ni vehículo. rol y numero_empleado no son editables por esta vía:
+ * rol es fijo, y numero_empleado es el identificador con el que el chofer
+ * inicia sesión.
+ *
+ * Solo se tocan los campos presentes en `datos` (aunque vengan en `null`,
+ * para poder borrar correo/area/edad/vehiculo_id a propósito); un campo
+ * ausente conserva su valor actual. Única excepción: `obra_id` es
+ * obligatorio en cada request, no se puede omitir.
  */
-export async function crear(user: AuthTokenPayload, datos: DatosCrearPerfil): Promise<PerfilPublico> {
-  if (!esStringNoVacia(datos.nombre_completo, 200)) {
-    throw new AppError(400, "nombre_completo es requerido y debe ser un texto válido.");
-  }
-  if (!esStringNoVacia(datos.numero_empleado, 100)) {
-    throw new AppError(400, "numero_empleado es requerido y debe ser un texto válido.");
-  }
-  if (!esStringNoVacia(datos.password, 200) || (datos.password as string).length < 4) {
-    throw new AppError(400, "password es requerido y debe tener al menos 4 caracteres.");
-  }
-  if (!esStringNoVacia(datos.obra_id, 100)) {
-    throw new AppError(400, "obra_id es requerido y debe ser un texto válido.");
-  }
-  if (datos.vehiculo_id !== undefined && datos.vehiculo_id !== null && !esStringNoVacia(datos.vehiculo_id, 100)) {
-    throw new AppError(400, "vehiculo_id debe ser un texto válido.");
-  }
-  if (datos.area !== undefined && datos.area !== null && !esStringNoVacia(datos.area, 100)) {
-    throw new AppError(400, "area debe ser un texto válido.");
-  }
-  let correo: string | undefined;
-  if (datos.correo !== undefined && datos.correo !== null) {
-    if (!esCorreoValido(datos.correo)) {
-      throw new AppError(400, "correo debe ser un correo electrónico válido.");
-    }
-    correo = normalizarCorreo(datos.correo);
-  }
-  if (datos.edad !== undefined && datos.edad !== null && !esEnteroNoNegativo(datos.edad)) {
-    throw new AppError(400, "edad debe ser un número entero no negativo.");
-  }
-
-  // administrativo solo puede dar de alta choferes en su propia obra; finanzas en cualquiera.
-  asegurarAccesoObra(user, datos.obra_id as string);
-
-  const obra = await prisma.obra.findUnique({ where: { id: datos.obra_id as string } });
-  if (!obra) {
-    throw new AppError(400, "obra_id no corresponde a una obra existente.");
-  }
-  if (datos.vehiculo_id) {
-    const vehiculo = await prisma.vehiculo.findUnique({ where: { id: datos.vehiculo_id as string } });
-    // Un solo mensaje para "no existe" y "existe pero es de otra obra": mismo
-    // criterio que accesoObra.ts (no confirmar la existencia de un recurso
-    // fuera del alcance del usuario) — antes se distinguían los dos casos,
-    // lo que permitía a un administrativo enumerar vehículos de otras obras.
-    if (!vehiculo || vehiculo.obraId !== datos.obra_id) {
-      throw new AppError(400, "vehiculo_id no corresponde a un vehículo válido para esta obra.");
-    }
-  }
-
-  const passwordHash = await bcrypt.hash(datos.password as string, RONDAS_BCRYPT);
-
-  try {
-    const perfil = await prisma.perfil.create({
-      data: {
-        numeroEmpleado: datos.numero_empleado as string,
-        passwordHash,
-        nombreCompleto: datos.nombre_completo as string,
-        rol: "chofer",
-        obraId: datos.obra_id as string,
-        vehiculoId: (datos.vehiculo_id as string | undefined) ?? null,
-        area: (datos.area as string | undefined) ?? null,
-        correo: correo ?? null,
-        edad: (datos.edad as number | undefined) ?? null,
-      },
-    });
-    return serializarPerfil(perfil);
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      // Mensaje genérico, sin eco del numero_empleado ni distinción de en qué
-      // obra vive el duplicado: numeroEmpleado es único a nivel global, así
-      // que confirmar la coincidencia exacta es un oráculo para enumerar
-      // personal de otras obras (mismo criterio que accesoObra.ts: no
-      // revelar la existencia de un recurso fuera del alcance del usuario).
-      throw new AppError(409, "No se pudo completar el alta con los datos proporcionados.");
-    }
-    throw error;
-  }
-}
-
-export interface DatosAsignacion {
-  obra_id: unknown;
-  vehiculo_id?: unknown;
-}
-
-/**
- * Asigna/reasigna obra_id y vehiculo_id de un chofer existente — ej. completar
- * el alta de un chofer que se autoregistró (POST /auth/registro-chofer, ver
- * auth.service.ts#registrarChofer) y nace sin obra ni vehículo asignados.
- */
-export async function actualizarAsignacion(
+export async function actualizar(
   user: AuthTokenPayload,
   perfilId: string,
-  datos: DatosAsignacion
+  datos: DatosActualizarPerfil
 ): Promise<PerfilPublico> {
   if (!esStringNoVacia(datos.obra_id, 100)) {
     throw new AppError(400, "obra_id es requerido y debe ser un texto válido.");
-  }
-  if (
-    datos.vehiculo_id !== undefined &&
-    datos.vehiculo_id !== null &&
-    !esStringNoVacia(datos.vehiculo_id, 100)
-  ) {
-    throw new AppError(400, "vehiculo_id debe ser un texto válido o null.");
   }
 
   const perfil = await prisma.perfil.findUnique({ where: { id: perfilId } });
@@ -177,10 +86,10 @@ export async function actualizarAsignacion(
     throw new AppError(404, "Perfil no encontrado.");
   }
   if (perfil.rol !== "chofer") {
-    throw new AppError(400, "Solo se puede asignar obra/vehículo a un perfil con rol chofer.");
+    throw new AppError(400, "Solo se puede editar por esta vía un perfil con rol chofer.");
   }
 
-  // administrativo solo puede asignar dentro de su propia obra.
+  // administrativo solo puede editar dentro de su propia obra.
   asegurarAccesoObra(user, datos.obra_id as string);
   // Si el perfil ya pertenecía a otra obra, también se exige acceso a esa obra
   // actual: evita que un administrativo mueva un chofer de otra obra hacia la
@@ -194,21 +103,83 @@ export async function actualizarAsignacion(
     throw new AppError(400, "obra_id no corresponde a una obra existente.");
   }
 
-  if (datos.vehiculo_id) {
-    const vehiculo = await prisma.vehiculo.findUnique({ where: { id: datos.vehiculo_id as string } });
-    // Mismo criterio anti-enumeración que crear(): un solo mensaje para "no
-    // existe" y "existe pero es de otra obra".
-    if (!vehiculo || vehiculo.obraId !== datos.obra_id) {
-      throw new AppError(400, "vehiculo_id no corresponde a un vehículo válido para esta obra.");
+  const data: Prisma.PerfilUncheckedUpdateInput = { obraId: datos.obra_id as string };
+
+  if (datos.nombre_completo !== undefined) {
+    if (!esStringNoVacia(datos.nombre_completo, 200)) {
+      throw new AppError(400, "nombre_completo debe ser un texto válido.");
+    }
+    data.nombreCompleto = datos.nombre_completo as string;
+  }
+
+  if (datos.area !== undefined) {
+    if (datos.area !== null && !esStringNoVacia(datos.area, 100)) {
+      throw new AppError(400, "area debe ser un texto válido o null.");
+    }
+    data.area = (datos.area as string | null) ?? null;
+  }
+
+  if (datos.correo !== undefined) {
+    if (datos.correo === null) {
+      data.correo = null;
+    } else {
+      if (!esCorreoValido(datos.correo)) {
+        throw new AppError(400, "correo debe ser un correo electrónico válido.");
+      }
+      data.correo = normalizarCorreo(datos.correo);
     }
   }
 
-  const actualizado = await prisma.perfil.update({
-    where: { id: perfilId },
-    data: {
-      obraId: datos.obra_id as string,
-      vehiculoId: (datos.vehiculo_id as string | undefined) ?? null,
-    },
-  });
-  return serializarPerfil(actualizado);
+  if (datos.edad !== undefined) {
+    if (datos.edad !== null && !esEnteroNoNegativo(datos.edad)) {
+      throw new AppError(400, "edad debe ser un número entero no negativo.");
+    }
+    data.edad = (datos.edad as number | null) ?? null;
+  }
+
+  // vehiculo_id destino: el que venga en el body, o si no vino, el que ya
+  // tenía el perfil (revalidado abajo por si cambió de obra sin reenviarlo).
+  const vehiculoIdDestino = datos.vehiculo_id !== undefined ? datos.vehiculo_id : perfil.vehiculoId;
+  if (
+    datos.vehiculo_id !== undefined &&
+    datos.vehiculo_id !== null &&
+    !esStringNoVacia(datos.vehiculo_id, 100)
+  ) {
+    throw new AppError(400, "vehiculo_id debe ser un texto válido o null.");
+  }
+
+  if (vehiculoIdDestino) {
+    const vehiculo = await prisma.vehiculo.findUnique({ where: { id: vehiculoIdDestino as string } });
+    // Un solo mensaje para "no existe" y "existe pero es de otra obra": mismo
+    // criterio que accesoObra.ts (no confirmar la existencia de un recurso
+    // fuera del alcance del usuario). Se revisa incluso si vehiculo_id no
+    // vino en este request, para no dejar un chofer con un vehículo de su
+    // obra anterior tras cambiarlo de obra_id sin reenviar vehiculo_id.
+    if (!vehiculo || vehiculo.obraId !== datos.obra_id) {
+      throw new AppError(
+        400,
+        datos.vehiculo_id !== undefined
+          ? "vehiculo_id no corresponde a un vehículo válido para esta obra."
+          : "El vehículo actualmente asignado no pertenece a la nueva obra; envía vehiculo_id explícitamente."
+      );
+    }
+  }
+  if (datos.vehiculo_id !== undefined) {
+    data.vehiculoId = (datos.vehiculo_id as string | null) ?? null;
+  }
+
+  try {
+    const actualizado = await prisma.perfil.update({
+      where: { id: perfilId },
+      data,
+    });
+    return serializarPerfil(actualizado);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      // Mensaje genérico, sin distinguir si chocó correo u otro campo único:
+      // mismo criterio anti-enumeración que el resto del archivo.
+      throw new AppError(409, "No se pudo actualizar el perfil con los datos proporcionados.");
+    }
+    throw error;
+  }
 }
