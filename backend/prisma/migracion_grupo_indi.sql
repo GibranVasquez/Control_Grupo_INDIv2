@@ -223,10 +223,28 @@ create table cargas (
   rendimiento_l_h numeric(10,2),   -- calculado en Edge Function al insertar (maquinaria)
   alerta_rendimiento alerta_rendimiento_tipo,  -- null = no aplica (ej. equipo menor sin medición)
   foto_ticket_url text,
+  -- Nota de mantenimiento (2026-07-14): "¿se alcanza a leer el número en la
+  -- foto?" — una sola respuesta por carga (ticket único o evidencia
+  -- múltiple, ver carga_evidencias más abajo), no por foto.
+  evidencia_legible boolean,
   fecha_carga timestamptz not null default now(),
   creado_offline boolean not null default false,
   sincronizado_en timestamptz
 );
+
+-- Fotos de evidencia múltiple (Maquinaria) — complementa foto_ticket_url
+-- (Carga, foto única, caso Vehículo). Antes de esto, comprobar_carga_page.dart
+-- solo podía subir la primera foto de evidencia; el resto se perdían porque
+-- no existía dónde guardarlas.
+create table carga_evidencias (
+  id uuid primary key default uuid_generate_v4(),
+  carga_id uuid not null references cargas(id),
+  foto_url text not null,
+  orden integer not null default 0,
+  creado_en timestamptz not null default now()
+);
+
+create index idx_carga_evidencias_carga on carga_evidencias(carga_id);
 
 create index idx_cargas_obra_fecha on cargas(obra_id, fecha_carga);
 create index idx_cargas_vehiculo on cargas(vehiculo_id, fecha_carga);

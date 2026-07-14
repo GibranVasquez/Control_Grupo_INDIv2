@@ -30,9 +30,16 @@ export interface CargaPublica {
   rendimiento_l_h: number | null;
   alerta_rendimiento: string | null;
   foto_ticket_url: string | null;
+  evidencia_legible: boolean | null;
   fecha_carga: Date;
   creado_offline: boolean;
   sincronizado_en: Date | null;
+}
+
+export interface CargaEvidenciaPublica {
+  id: string;
+  foto_url: string;
+  orden: number;
 }
 
 function serializar(c: Carga): CargaPublica {
@@ -53,6 +60,7 @@ function serializar(c: Carga): CargaPublica {
     rendimiento_l_h: numeroDesdeDecimal(c.rendimientoLH),
     alerta_rendimiento: c.alertaRendimiento,
     foto_ticket_url: c.fotoTicketUrl,
+    evidencia_legible: c.evidenciaLegible,
     fecha_carga: c.fechaCarga,
     creado_offline: c.creadoOffline,
     sincronizado_en: c.sincronizadoEn,
@@ -78,6 +86,7 @@ export interface DatosCrearCarga {
   horas_actual?: unknown;
   fecha_carga?: unknown;
   creado_offline?: unknown;
+  evidencia_legible?: unknown;
 }
 
 export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Promise<CargaPublica> {
@@ -122,6 +131,9 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
   }
   if (datos.creado_offline !== undefined && typeof datos.creado_offline !== "boolean") {
     throw new AppError(400, "creado_offline debe ser booleano.");
+  }
+  if (datos.evidencia_legible !== undefined && datos.evidencia_legible !== null && typeof datos.evidencia_legible !== "boolean") {
+    throw new AppError(400, "evidencia_legible debe ser booleano.");
   }
 
   // km_anterior/horas_anterior NUNCA se toman del cliente (evita que un
@@ -270,6 +282,7 @@ export async function crear(user: AuthTokenPayload, datos: DatosCrearCarga): Pro
           alertaRendimiento,
           fechaCarga: datos.fecha_carga ? new Date(datos.fecha_carga as string) : new Date(),
           creadoOffline: (datos.creado_offline as boolean | undefined) ?? false,
+          evidenciaLegible: (datos.evidencia_legible as boolean | undefined) ?? null,
         },
       });
     });
@@ -336,4 +349,66 @@ export async function subirFotoTicket(
     data: { fotoTicketUrl: urlPublica },
   });
   return serializar(actualizada);
+}
+
+function serializarEvidencia(e: {
+  id: string;
+  fotoUrl: string;
+  orden: number;
+}): CargaEvidenciaPublica {
+  return { id: e.id, foto_url: e.fotoUrl, orden: e.orden };
+}
+
+/**
+ * Sube varias fotos de evidencia para una carga de Maquinaria (complementa
+ * foto_ticket_url, que solo cubre una foto — ver comprobar_carga_page.dart).
+ * `urlsPublicas` ya viene subida a storage por el controller, en el mismo
+ * orden en que el cliente mandó los archivos.
+ */
+export async function subirEvidencias(
+  user: AuthTokenPayload,
+  cargaId: string,
+  urlsPublicas: string[]
+): Promise<CargaEvidenciaPublica[]> {
+  const carga = await prisma.carga.findUnique({ where: { id: cargaId } });
+  if (!carga) {
+    throw new AppError(404, "Carga no encontrada.");
+  }
+  if (carga.choferId !== user.perfilId) {
+    throw new AppError(403, "No puedes modificar la carga de otro chofer.");
+  }
+
+  // orden continúa a partir de las evidencias ya subidas para esta carga
+  // (por si el cliente reintenta la subida en más de una llamada).
+  const existentes = await prisma.cargaEvidencia.count({ where: { cargaId } });
+
+  const creadas = await prisma.$transaction(
+    urlsPublicas.map((fotoUrl, indice) =>
+      prisma.cargaEvidencia.create({
+        data: { cargaId, fotoUrl, orden: existentes + indice },
+      })
+    )
+  );
+  return creadas.map(serializarEvidencia);
+}
+
+export async function listarEvidencias(
+  user: AuthTokenPayload,
+  cargaId: string
+): Promise<CargaEvidenciaPublica[]> {
+  const carga = await prisma.carga.findUnique({ where: { id: cargaId } });
+  if (!carga) {
+    throw new AppError(404, "Carga no encontrada.");
+  }
+  // El chofer dueño siempre puede verlas; administrativo/finanzas necesitan
+  // acceso a la obra de la carga (mismo criterio que listarPorObra).
+  if (carga.choferId !== user.perfilId) {
+    asegurarAccesoObra(user, carga.obraId);
+  }
+
+  const evidencias = await prisma.cargaEvidencia.findMany({
+    where: { cargaId },
+    orderBy: { orden: "asc" },
+  });
+  return evidencias.map(serializarEvidencia);
 }

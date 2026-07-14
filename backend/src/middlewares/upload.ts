@@ -18,3 +18,20 @@ export const uploadFotoTicket = multer({
     cb(null, true);
   },
 }).single("foto");
+
+// Fotos de evidencia múltiple (Maquinaria, ver carga.controller.ts#subirEvidencias).
+// El tope de 5 se impone aquí (no solo confiado al frontend, que hoy también
+// limita a 5 en comprobar_carga_page.dart).
+export const MAX_FOTOS_EVIDENCIA = 5;
+
+export const uploadEvidencias = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: TAMANO_MAXIMO_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (!TIPOS_PERMITIDOS.includes(file.mimetype)) {
+      cb(new AppError(400, "Cada evidencia debe ser una imagen JPEG, PNG o WebP."));
+      return;
+    }
+    cb(null, true);
+  },
+}).array("fotos", MAX_FOTOS_EVIDENCIA);

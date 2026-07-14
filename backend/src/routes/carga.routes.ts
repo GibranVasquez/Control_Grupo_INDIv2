@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as cargaController from "../controllers/carga.controller";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { permitirRoles } from "../middlewares/role.middleware";
-import { uploadFotoTicket } from "../middlewares/upload";
+import { uploadEvidencias, uploadFotoTicket } from "../middlewares/upload";
 
 export const cargaRouter = Router();
 
@@ -20,3 +20,13 @@ cargaRouter.post(
   uploadFotoTicket,
   cargaController.subirFotoTicket
 );
+
+// Fotos de evidencia múltiple (Maquinaria) — complementa /foto-ticket
+// (Vehículo, foto única), que se deja intacto.
+cargaRouter.post(
+  "/:id/evidencias",
+  permitirRoles("chofer"),
+  uploadEvidencias,
+  cargaController.subirEvidencias
+);
+cargaRouter.get("/:id/evidencias", cargaController.listarEvidencias);

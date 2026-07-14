@@ -318,19 +318,44 @@ model Carga {
   rendimientoLH      Decimal?               @map("rendimiento_l_h") @db.Decimal(10, 2)
   alertaRendimiento  AlertaRendimientoTipo?  @map("alerta_rendimiento")
   fotoTicketUrl      String?                @map("foto_ticket_url")
+  // "¿se alcanza a leer el número en la foto?" (medidor/horómetro) — una sola
+  // respuesta por carga, sea ticket único (vehículo) o evidencia múltiple
+  // (maquinaria, ver CargaEvidencia); no es una propiedad por foto.
+  evidenciaLegible   Boolean?               @map("evidencia_legible")
   fechaCarga         DateTime               @default(now()) @map("fecha_carga") @db.Timestamptz(6)
   creadoOffline      Boolean                @default(false) @map("creado_offline")
   sincronizadoEn     DateTime?              @map("sincronizado_en") @db.Timestamptz(6)
 
-  solicitud SolicitudAutorizacion  @relation(fields: [solicitudId], references: [id])
-  chofer    Perfil                 @relation(fields: [choferId], references: [id])
-  vehiculo  Vehiculo               @relation(fields: [vehiculoId], references: [id])
-  obra      Obra                   @relation(fields: [obraId], references: [id])
+  solicitud  SolicitudAutorizacion  @relation(fields: [solicitudId], references: [id])
+  chofer     Perfil                 @relation(fields: [choferId], references: [id])
+  vehiculo   Vehiculo               @relation(fields: [vehiculoId], references: [id])
+  obra       Obra                   @relation(fields: [obraId], references: [id])
+  evidencias CargaEvidencia[]
 
   @@index([obraId, fechaCarga], map: "idx_cargas_obra_fecha")
   @@index([vehiculoId, fechaCarga], map: "idx_cargas_vehiculo")
   @@index([choferId], map: "idx_cargas_chofer")
   @@map("cargas")
+}
+
+// ---------------------------------------------------------------------
+// 8.1 EVIDENCIAS DE CARGA (fotos múltiples — Maquinaria)
+// ---------------------------------------------------------------------
+// Complementa foto_ticket_url (Carga, foto única — caso Vehículo). Para
+// Maquinaria el chofer puede subir varias fotos de evidencia (medidor,
+// unidad); antes de esto solo se guardaba la primera y el resto se perdía
+// (ver comprobar_carga_page.dart del lado Flutter).
+model CargaEvidencia {
+  id       String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cargaId  String   @map("carga_id") @db.Uuid
+  fotoUrl  String   @map("foto_url")
+  orden    Int      @default(0)
+  creadoEn DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  carga Carga @relation(fields: [cargaId], references: [id])
+
+  @@index([cargaId], map: "idx_carga_evidencias_carga")
+  @@map("carga_evidencias")
 }
 
 // ---------------------------------------------------------------------

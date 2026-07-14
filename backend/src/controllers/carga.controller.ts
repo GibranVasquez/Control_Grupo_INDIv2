@@ -40,3 +40,28 @@ export async function subirFotoTicket(req: Request, res: Response): Promise<void
   const carga = await cargaService.subirFotoTicket(req.user!, paramString(req.params.id), urlPublica);
   res.json({ carga });
 }
+
+export async function subirEvidencias(req: Request, res: Response): Promise<void> {
+  const archivos = (req.files as Express.Multer.File[] | undefined) ?? [];
+  if (archivos.length === 0) {
+    throw new AppError(400, "Se requiere al menos un archivo en 'fotos'.");
+  }
+
+  const urlsPublicas: string[] = [];
+  for (const archivo of archivos) {
+    const key = await storageService.subirArchivo("evidencias", {
+      buffer: archivo.buffer,
+      nombreOriginal: archivo.originalname,
+      mimeType: archivo.mimetype,
+    });
+    urlsPublicas.push(storageService.obtenerUrl(key));
+  }
+
+  const evidencias = await cargaService.subirEvidencias(req.user!, paramString(req.params.id), urlsPublicas);
+  res.status(201).json({ evidencias });
+}
+
+export async function listarEvidencias(req: Request, res: Response): Promise<void> {
+  const evidencias = await cargaService.listarEvidencias(req.user!, paramString(req.params.id));
+  res.json({ evidencias });
+}
