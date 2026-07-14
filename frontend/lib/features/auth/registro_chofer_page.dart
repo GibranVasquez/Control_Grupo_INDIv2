@@ -1,8 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/enums.dart';
+import '../../state/auth_controller.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
@@ -16,18 +19,20 @@ enum _TipoUnidadFormulario { vehiculo, pipa, maquinaria }
 
 /// Pantalla de registro de chofer, previa al login (ver mockup del feature).
 ///
-/// Por ahora es solo UI: valida todo localmente y no llama al backend, que
-/// hoy solo permite alta de choferes desde administrativo/finanzas (ver
-/// perfil.routes.ts). Cuando se defina el flujo real (solicitud pendiente de
-/// aprobación vs. autoregistro directo) se cablea el envío aquí.
-class RegistroChoferPage extends StatefulWidget {
+/// Llama a `POST /auth/registro-chofer` (autoregistro público, activo de
+/// inmediato — ver auth.service.ts#registrarChofer): el chofer queda sin
+/// obra/vehículo asignados hasta que un administrativo lo vincule desde
+/// Choferes/Usuarios. Los campos que el esquema de perfiles no modela
+/// todavía (correo, edad, tipo de unidad, placas/económico, obra en texto
+/// libre, ingeniero) se guardan como un resumen legible en `area`.
+class RegistroChoferPage extends ConsumerStatefulWidget {
   const RegistroChoferPage({super.key});
 
   @override
-  State<RegistroChoferPage> createState() => _RegistroChoferPageState();
+  ConsumerState<RegistroChoferPage> createState() => _RegistroChoferPageState();
 }
 
-class _RegistroChoferPageState extends State<RegistroChoferPage> {
+class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nombresCtrl = TextEditingController();
@@ -87,30 +92,82 @@ class _RegistroChoferPageState extends State<RegistroChoferPage> {
     });
   }
 
+  String get _unidadEtiqueta => switch (_tipoUnidad) {
+    _TipoUnidadFormulario.vehiculo => 'vehículo',
+    _TipoUnidadFormulario.pipa => 'pipa',
+    _TipoUnidadFormulario.maquinaria => 'maquinaria',
+  };
+
+  /// Resumen legible de los campos que el esquema de perfiles todavía no
+  /// modela (ver comentario de la clase) — se guarda tal cual en `area`.
+  String _construirArea() {
+    final partes = <String>[
+      'Registro propio',
+      'correo: ${_correoCtrl.text.trim()}',
+      'edad: ${_edadCtrl.text.trim()}',
+      'unidad: $_unidadEtiqueta',
+      'combustible: ${_tipoCombustible.etiqueta}',
+      if (_requierePlacas) 'placas: ${_placasCtrl.text.trim()}',
+      if (_requiereNumeroEconomico)
+        'económico: ${_numeroEconomicoCtrl.text.trim()}',
+      'obra: ${_obraCtrl.text.trim()}',
+      'reporta con: ${_seReportaConCtrl.text.trim()}',
+      if (_esPipa) 'carga en: ${_dondeCargaCtrl.text.trim()}',
+    ];
+    return partes.join(' · ');
+  }
+
   Future<void> _enviar() async {
     FocusScope.of(context).unfocus();
     final formOk = _formKey.currentState?.validate() ?? false;
     if (!formOk) return;
 
     setState(() => _enviando = true);
-    // Simulación: aún no hay endpoint público de autoregistro (ver
-    // perfil.routes.ts, alta restringida a administrativo/finanzas).
-    await Future.delayed(const Duration(milliseconds: 900));
+
+    final nombreCompleto = [
+      _nombresCtrl.text.trim(),
+      _apellidoPaternoCtrl.text.trim(),
+      _apellidoMaternoCtrl.text.trim(),
+    ].join(' ');
+
+    await ref
+        .read(authControllerProvider.notifier)
+        .registrarChofer(
+          nombreCompleto: nombreCompleto,
+          numeroEmpleado: _usuarioCtrl.text.trim(),
+          password: _passwordCtrl.text,
+          area: _construirArea(),
+        );
+
     if (!mounted) return;
+    final error = ref.read(authControllerProvider).error;
     setState(() => _enviando = false);
 
+    if (error != null) {
+      final esConflicto =
+          error is DioException && error.response?.statusCode == 409;
+      final mensaje = esConflicto
+          ? 'Ese usuario ya existe. Elige otro.'
+          : 'No pudimos crear tu cuenta. Intenta de nuevo.';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(backgroundColor: AppColors.error, content: Text(mensaje)),
+        );
+      return;
+    }
+
+    // Sesión ya quedó activa (registrarChofer hace login automático) — el
+    // router redirige solo al home del chofer (ver app_router.dart), igual
+    // que tras un login exitoso normal.
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           backgroundColor: AppColors.success,
-          content: Text(
-            '¡Registro recibido, ${_nombresCtrl.text.trim()}! '
-            'Un administrador validará tu cuenta antes de que puedas ingresar.',
-          ),
+          content: Text('¡Bienvenido, ${_nombresCtrl.text.trim()}!'),
         ),
       );
-    context.go('/login');
   }
 
   @override
@@ -259,8 +316,7 @@ class _RegistroChoferPageState extends State<RegistroChoferPage> {
                                       child: _AvisoPipa(
                                         controller: _dondeCargaCtrl,
                                         validator: _esPipa
-                                            ? (v) =>
-                                                _validarTexto(v, minimo: 3)
+                                            ? (v) => _validarTexto(v, minimo: 3)
                                             : null,
                                       ),
                                     )
@@ -272,7 +328,7 @@ class _RegistroChoferPageState extends State<RegistroChoferPage> {
                             _Campo(
                               label: 'USUARIO',
                               controller: _usuarioCtrl,
-                              hint: 'INDI-04871',
+                              hint: 'antonio.ponce',
                               mono: true,
                               validator: (v) => _validarTexto(v, minimo: 3),
                             ),
@@ -302,8 +358,9 @@ class _RegistroChoferPageState extends State<RegistroChoferPage> {
                             ),
                             const SizedBox(height: 12),
                             TextButton(
-                              onPressed:
-                                  _enviando ? null : () => context.go('/login'),
+                              onPressed: _enviando
+                                  ? null
+                                  : () => context.go('/login'),
                               child: const Text(
                                 'Ya tengo una cuenta · Ingresar',
                                 style: TextStyle(fontWeight: FontWeight.w700),
@@ -568,7 +625,10 @@ class _CampoPassword extends StatelessWidget {
 }
 
 class _SelectorTipoUnidad extends StatelessWidget {
-  const _SelectorTipoUnidad({required this.seleccionado, required this.onChanged});
+  const _SelectorTipoUnidad({
+    required this.seleccionado,
+    required this.onChanged,
+  });
 
   final _TipoUnidadFormulario seleccionado;
   final ValueChanged<_TipoUnidadFormulario> onChanged;
@@ -649,7 +709,10 @@ class _SelectorTipoUnidad extends StatelessWidget {
 }
 
 class _SelectorCombustible extends StatelessWidget {
-  const _SelectorCombustible({required this.seleccionado, required this.onChanged});
+  const _SelectorCombustible({
+    required this.seleccionado,
+    required this.onChanged,
+  });
 
   final TipoCombustible seleccionado;
   final ValueChanged<TipoCombustible> onChanged;
@@ -675,9 +738,7 @@ class _SelectorCombustible extends StatelessWidget {
             if (v != null) onChanged(v);
           },
           items: TipoCombustible.values
-              .map(
-                (t) => DropdownMenuItem(value: t, child: Text(t.etiqueta)),
-              )
+              .map((t) => DropdownMenuItem(value: t, child: Text(t.etiqueta)))
               .toList(),
           style: const TextStyle(fontSize: 16, color: AppColors.navy),
         ),
@@ -706,7 +767,11 @@ class _AvisoPipa extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.local_shipping_rounded, color: AppColors.primary, size: 18),
+              Icon(
+                Icons.local_shipping_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
               SizedBox(width: 8),
               Expanded(
                 child: Text(

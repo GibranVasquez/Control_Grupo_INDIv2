@@ -9,6 +9,7 @@ import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 class SolicitarLitrosPage extends ConsumerStatefulWidget {
@@ -88,7 +89,7 @@ class _SolicitarLitrosPageState extends ConsumerState<SolicitarLitrosPage> {
       if (!mounted) return;
       setState(() => _enviando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo enviar la solicitud: $e')),
+        SnackBar(content: Text(mensajeErrorRed(e, accion: 'enviar la solicitud'))),
       );
     }
   }

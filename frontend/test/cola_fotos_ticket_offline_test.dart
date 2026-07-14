@@ -87,6 +87,22 @@ void main() {
         data: {'estado': 'autorizado', 'litros_autorizados': 12},
       );
 
+      // Este backend apunta a la BD real compartida (ver backend/.env): el
+      // vehículo ya puede traer cargas de corridas anteriores de este mismo
+      // test. El servidor exige km_actual >= al km_actual de la última carga
+      // real del vehículo (carga.service.ts), así que se calcula en vivo en
+      // vez de asumir un valor fijo.
+      final cargasPrevias = await dioAdmin.get<Map<String, dynamic>>(
+        '/cargas/por-obra',
+        queryParameters: {'obra_id': 'a1000000-0000-0000-0000-000000000001'},
+      );
+      final kmMaximoPrevio = (cargasPrevias.data!['cargas'] as List<dynamic>)
+          .cast<Map<String, dynamic>>()
+          .where((c) => c['vehiculo_id'] == _vehiculoFordF150Id)
+          .map((c) => (c['km_actual'] as num?)?.toInt() ?? 0)
+          .fold(50000, (a, b) => a > b ? a : b);
+      final kmActualNuevo = kmMaximoPrevio + 100;
+
       // 1. Directorio temporal propio del test, y mock de path_provider (ver
       // ColaFotosTicketService.agregar, que usa getApplicationSupportDirectory)
       // — flutter test no tiene un canal de plataforma real para esto.
@@ -129,8 +145,8 @@ void main() {
           litros: 12,
           precioPorLitro: 24.5,
           montoTotal: 12 * 24.5,
-          kmActual: 50100,
-          kmAnterior: 50000,
+          kmActual: kmActualNuevo,
+          kmAnterior: kmMaximoPrevio,
           fechaCarga: DateTime.now(),
           creadoOffline: false,
         ),
@@ -211,7 +227,17 @@ void main() {
       expect(cargaActualizada['foto_ticket_url'], isNotNull);
 
       await db.disconnectAndClear();
-      await tempDir.delete(recursive: true);
+      // En Windows, el isolate nativo de sqlite3 mantiene el archivo .db
+      // abierto durante toda la vida del proceso de `flutter test` (no se
+      // libera con disconnectAndClear(), ni esperando) — el directorio
+      // temporal queda huérfano en %TEMP% hasta que el proceso termina. No es
+      // un bug de la app: todas las aserciones de arriba ya corrieron y
+      // pasaron: esto es solo limpieza de disco best-effort.
+      try {
+        await tempDir.delete(recursive: true);
+      } on FileSystemException {
+        // Ignorado a propósito, ver comentario de arriba.
+      }
     },
     timeout: const Timeout(Duration(seconds: 60)),
   );

@@ -8,6 +8,7 @@ import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 /// Bandeja de solicitudes pendientes de la obra del administrativo.
@@ -88,7 +89,7 @@ class _BandejaAutorizacionesPageState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo resolver la solicitud: $e')),
+        SnackBar(content: Text(mensajeErrorRed(e, accion: 'resolver la solicitud'))),
       );
     } finally {
       if (mounted) setState(() => _resolviendo.remove(solicitud.id));

@@ -1,17 +1,28 @@
-# gi_control_combustible
+# gi_control_combustible — frontend
 
-A new Flutter project.
+App móvil/escritorio en Flutter para el control de cargas de combustible de
+INDI: registro de cargas por chofer, autorización por administrativo, y
+seguimiento financiero por finanzas.
 
-## Getting Started
+- Arquitectura y convenciones del código: ver [ARCHITECTURE.md](ARCHITECTURE.md).
+- Instrucciones de compilación por plataforma: ver [BUILD.md](BUILD.md).
 
-This project is a starting point for a Flutter application.
+## Stack
 
-A few resources to get you started if this is your first Flutter project:
+- Flutter + Riverpod (estado) + go_router (navegación).
+- PowerSync (SQLite local con sincronización) + API REST propia (`dio`) como
+  fuentes de datos — ver `lib/services/powersync/` y `lib/services/api/`.
+- `flutter_secure_storage`/`shared_preferences` para almacenamiento local,
+  `local_auth` para biometría, `sentry_flutter` para monitoreo de errores.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Desarrollo local
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. Backend corriendo (ver `../backend/README.md`) y servicio de PowerSync
+   levantado (`../backend/powersync/`).
+2. `flutter pub get`
+3. `flutter run --dart-define=API_URL=http://localhost:4000 --dart-define=POWERSYNC_URL=http://localhost:8080`
+
+## Tests
+
+`flutter test` — incluye un test de integración (`cola_fotos_ticket_offline_test.dart`)
+que corre contra el backend real en `localhost:4000` (debe estar levantado).

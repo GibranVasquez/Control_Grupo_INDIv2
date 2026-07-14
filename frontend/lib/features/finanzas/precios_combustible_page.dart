@@ -7,6 +7,7 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 
 /// Gestión de precios vigentes por tipo de combustible (Fase 5).
 /// Dar de alta un precio nuevo no borra el histórico — solo agrega una fila más vigente.
@@ -37,7 +38,7 @@ class _PreciosCombustiblePageState extends ConsumerState<PreciosCombustiblePage>
       messenger.showSnackBar(const SnackBar(content: Text('Precio actualizado.')));
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(backgroundColor: AppColors.error, content: Text('No se pudo guardar el precio: $e')),
+        SnackBar(backgroundColor: AppColors.error, content: Text(mensajeErrorRed(e, accion: 'guardar el precio'))),
       );
     }
   }

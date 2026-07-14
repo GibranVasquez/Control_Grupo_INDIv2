@@ -6,6 +6,8 @@ import '../../models/models.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
+import '../../utils/exportar_csv.dart';
 import '../../widgets/widgets.dart';
 
 /// Reemplaza la hoja de control financiero por responsable/semana.
@@ -28,6 +30,56 @@ class ResumenFinancieroPage extends StatefulWidget {
 
 class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
   PeriodoFiltro _periodo = PeriodoFiltro.mes;
+
+  Future<void> _exportar(List<VistaResumenFinancieroSemanal> filas) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (filas.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No hay filas para exportar en este periodo.')),
+      );
+      return;
+    }
+
+    try {
+      final formatoFecha = DateFormat('yyyy-MM-dd');
+      final archivo = await exportarCsv(
+        nombreBase: 'resumen_financiero',
+        encabezados: const [
+          'Semana',
+          'Periodo inicio',
+          'Periodo fin',
+          'Solicitado',
+          'Consumo',
+          'Deposito',
+          'Saldo a favor',
+          'Estatus',
+        ],
+        filas: [
+          for (final fila in filas)
+            [
+              fila.numeroSemana,
+              formatoFecha.format(fila.periodoInicio),
+              formatoFecha.format(fila.periodoFin),
+              fila.solicitado,
+              fila.consumo,
+              fila.deposito,
+              fila.saldoAFavor,
+              fila.estatus,
+            ],
+        ],
+      );
+
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Exportado a ${archivo.path}')));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.error,
+          content: Text(mensajeErrorRed(e, accion: 'exportar el archivo')),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +118,12 @@ class _ResumenFinancieroPageState extends State<ResumenFinancieroPage> {
               SegmentadorPeriodo(
                 seleccionado: _periodo,
                 onChanged: (p) => setState(() => _periodo = p),
+              ),
+              const SizedBox(width: 12),
+              IconButton(
+                tooltip: 'Exportar a CSV',
+                icon: const Icon(Icons.file_download_outlined),
+                onPressed: () => _exportar(filas),
               ),
             ],
           ),

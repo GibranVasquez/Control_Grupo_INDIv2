@@ -30,4 +30,14 @@ abstract class PerfilRepository {
     String? vehiculoId,
     String? area,
   });
+
+  /// Autoregistro público de chofer (`POST /auth/registro-chofer`), sin
+  /// sesión previa: crea el perfil ya activo (sin obra/vehículo asignados) y
+  /// deja el JWT guardado, igual que [iniciarSesion]. Ver registro_chofer_page.dart.
+  Future<Perfil> registrarChofer({
+    required String nombreCompleto,
+    required String numeroEmpleado,
+    required String password,
+    String? area,
+  });
 }

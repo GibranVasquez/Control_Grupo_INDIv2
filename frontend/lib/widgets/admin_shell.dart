@@ -34,24 +34,28 @@ class AdminShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.esMovil) {
+      // Antes: Drawer oculto tras un ícono de hamburguesa (un toque extra y
+      // menos descubrible). Una barra de navegación inferior siempre visible
+      // es el patrón estándar de apps móviles para 4-5 destinos de primer
+      // nivel: cambiar de sección es un solo toque y se ve de inmediato en
+      // qué sección se está, sin abrir nada.
       return Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(title: Text(items[indiceSeleccionado].etiqueta)),
-        drawer: Drawer(
-          backgroundColor: AppColors.navy,
-          child: SafeArea(
-            child: _SidebarContenido(
-              items: items,
-              indiceSeleccionado: indiceSeleccionado,
-              nombreUsuario: nombreUsuario,
-              onSeleccionar: (i) {
-                Navigator.of(context).pop();
-                onSeleccionar(i);
-              },
-            ),
-          ),
+        appBar: AppBar(
+          title: Text(items[indiceSeleccionado].etiqueta),
+          actions: [
+            AvatarIniciales(nombre: nombreUsuario, diametro: 32),
+            const SizedBox(width: 8),
+            const CerrarSesionButton(color: Colors.white),
+            const SizedBox(width: 4),
+          ],
         ),
         body: child,
+        bottomNavigationBar: _BarraInferior(
+          items: items,
+          indiceSeleccionado: indiceSeleccionado,
+          onSeleccionar: onSeleccionar,
+        ),
       );
     }
 
@@ -163,6 +167,40 @@ class _SidebarContenido extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(12, 4, 12, 16),
           child: CerrarSesionButton(color: Colors.white70, conEtiqueta: true),
         ),
+      ],
+    );
+  }
+}
+
+/// Barra de navegación inferior para móvil (ver comentario en [AdminShell]).
+/// `type: fixed` explícito: con 4-5 items Flutter usaría "shifting" por
+/// defecto (íconos que cambian de tamaño/color de forma menos predecible),
+/// que no es lo que se busca aquí.
+class _BarraInferior extends StatelessWidget {
+  const _BarraInferior({
+    required this.items,
+    required this.indiceSeleccionado,
+    required this.onSeleccionar,
+  });
+
+  final List<AdminNavItem> items;
+  final int indiceSeleccionado;
+  final ValueChanged<int> onSeleccionar;
+
+  @override
+  Widget build(BuildContext context) {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: indiceSeleccionado,
+      onTap: onSeleccionar,
+      backgroundColor: AppColors.surface,
+      selectedItemColor: AppColors.primary,
+      unselectedItemColor: AppColors.textTertiary,
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 11.5),
+      unselectedLabelStyle: const TextStyle(fontSize: 11.5),
+      items: [
+        for (final item in items)
+          BottomNavigationBarItem(icon: Icon(item.icono), label: item.etiqueta),
       ],
     );
   }

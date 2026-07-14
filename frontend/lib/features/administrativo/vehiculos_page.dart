@@ -8,6 +8,7 @@ import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 const _estadosVehiculo = ['activo', 'taller', 'baja'];
@@ -72,7 +73,7 @@ class _VehiculosPageState extends ConsumerState<VehiculosPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar el vehículo: $e')),
+        SnackBar(content: Text(mensajeErrorRed(e, accion: 'guardar el vehículo'))),
       );
     }
   }

@@ -1,9 +1,10 @@
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
-import { Perfil } from "@prisma/client";
+import { Perfil, Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../utils/AppError";
 import { serializarPerfil, PerfilPublico } from "../utils/perfilSerializer";
+import { esStringNoVacia } from "../utils/validacion";
 
 const MENSAJE_CREDENCIALES_INVALIDAS = "Número de empleado o contraseña incorrectos.";
 const MENSAJE_CUENTA_DESACTIVADA = "Esta cuenta está desactivada. Contacta a un administrador.";
@@ -86,4 +87,66 @@ export async function iniciarSesion(
 export async function obtenerPerfilPublicoPorId(perfilId: string): Promise<PerfilPublico | null> {
   const perfil = await prisma.perfil.findUnique({ where: { id: perfilId } });
   return perfil ? serializarPerfil(perfil) : null;
+}
+
+const RONDAS_BCRYPT = 10;
+
+export interface DatosRegistroChofer {
+  nombre_completo: unknown;
+  numero_empleado: unknown;
+  password: unknown;
+  area?: unknown;
+}
+
+/**
+ * Autoregistro público de chofer (`POST /auth/registro-chofer`, ver
+ * auth.routes.ts): a diferencia de perfil.service.ts#crear (solo
+ * administrativo/finanzas, requiere obra_id), este endpoint no exige
+ * autenticación ni obra — el chofer queda activo de inmediato pero sin
+ * obra_id/vehiculo_id asignados (nulos) hasta que un administrativo lo
+ * vincule a una obra y unidad reales desde Choferes/Usuarios.
+ *
+ * `area` recibe el resumen de los datos que el formulario de registro pide
+ * pero que el esquema de perfiles no modela todavía (correo, edad, tipo de
+ * unidad, placas/número económico, obra/frente en texto libre, ingeniero al
+ * que se reporta) — ver registro_chofer_page.dart. Evita perder esos datos
+ * sin necesitar una migración de esquema compartida.
+ */
+export async function registrarChofer(datos: DatosRegistroChofer): Promise<ResultadoLogin> {
+  if (!esStringNoVacia(datos.nombre_completo, 200)) {
+    throw new AppError(400, "nombre_completo es requerido y debe ser un texto válido.");
+  }
+  if (!esStringNoVacia(datos.numero_empleado, 100)) {
+    throw new AppError(400, "numero_empleado es requerido y debe ser un texto válido.");
+  }
+  if (!esStringNoVacia(datos.password, 200) || (datos.password as string).length < 4) {
+    throw new AppError(400, "password es requerido y debe tener al menos 4 caracteres.");
+  }
+  if (datos.area !== undefined && datos.area !== null && !esStringNoVacia(datos.area, 500)) {
+    throw new AppError(400, "area debe ser un texto válido.");
+  }
+
+  const passwordHash = await bcrypt.hash(datos.password as string, RONDAS_BCRYPT);
+
+  let perfil: Perfil;
+  try {
+    perfil = await prisma.perfil.create({
+      data: {
+        numeroEmpleado: datos.numero_empleado as string,
+        passwordHash,
+        nombreCompleto: datos.nombre_completo as string,
+        rol: "chofer",
+        area: (datos.area as string | undefined) ?? null,
+        activo: true,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError(409, `Ya existe un usuario con el número de empleado "${datos.numero_empleado}".`);
+    }
+    throw error;
+  }
+
+  const token = firmarToken(perfil);
+  return { token, perfil: serializarPerfil(perfil) };
 }

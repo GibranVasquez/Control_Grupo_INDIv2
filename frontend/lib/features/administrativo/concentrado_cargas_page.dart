@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 import '../../models/models.dart';
 import '../../state/providers.dart';
@@ -13,6 +9,8 @@ import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
+import '../../utils/exportar_csv.dart';
 import '../../widgets/widgets.dart';
 
 /// Filtros aplicables al concentrado, además del periodo (Día/Semana/Mes/Año).
@@ -88,35 +86,38 @@ class _ConcentradoCargasPageState extends ConsumerState<ConcentradoCargasPage> {
 
     try {
       final formatoFecha = DateFormat('yyyy-MM-dd');
-      final buffer = StringBuffer()
-        ..writeln(
-          'Fecha,Responsable,Vehiculo,Placas,Km/Horas,Litros,Rendimiento,Precio por litro,Combustible,Importe,Ticket',
-        );
-      for (final fila in filas) {
-        String celda(Object? valor) =>
-            '"${(valor ?? '').toString().replaceAll('"', '""')}"';
-        buffer.writeln(
-          [
-            celda(formatoFecha.format(fila.fecha)),
-            celda(fila.responsable),
-            celda(fila.vehiculoDescripcion),
-            celda(fila.placa),
-            celda(fila.esMaquinaria ? fila.horasActual : fila.km),
-            celda(fila.litros),
-            celda(fila.esMaquinaria ? fila.rendimientoLH : fila.rendimientoKmL),
-            celda(fila.precioPorLitro),
-            celda(fila.tipoCombustible.etiqueta),
-            celda(fila.importe),
-            celda(fila.ticketPendiente ? 'Pendiente' : 'Entregado'),
-          ].join(','),
-        );
-      }
-
-      final directorio = await getApplicationDocumentsDirectory();
-      final nombreArchivo =
-          'concentrado_cargas_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.csv';
-      final archivo = File(path.join(directorio.path, nombreArchivo));
-      await archivo.writeAsString(buffer.toString());
+      final archivo = await exportarCsv(
+        nombreBase: 'concentrado_cargas',
+        encabezados: const [
+          'Fecha',
+          'Responsable',
+          'Vehiculo',
+          'Placas',
+          'Km/Horas',
+          'Litros',
+          'Rendimiento',
+          'Precio por litro',
+          'Combustible',
+          'Importe',
+          'Ticket',
+        ],
+        filas: [
+          for (final fila in filas)
+            [
+              formatoFecha.format(fila.fecha),
+              fila.responsable,
+              fila.vehiculoDescripcion,
+              fila.placa,
+              fila.esMaquinaria ? fila.horasActual : fila.km,
+              fila.litros,
+              fila.esMaquinaria ? fila.rendimientoLH : fila.rendimientoKmL,
+              fila.precioPorLitro,
+              fila.tipoCombustible.etiqueta,
+              fila.importe,
+              fila.ticketPendiente ? 'Pendiente' : 'Entregado',
+            ],
+        ],
+      );
 
       if (!mounted) return;
       messenger.showSnackBar(
@@ -126,7 +127,7 @@ class _ConcentradoCargasPageState extends ConsumerState<ConcentradoCargasPage> {
       messenger.showSnackBar(
         SnackBar(
           backgroundColor: AppColors.error,
-          content: Text('No se pudo exportar: $e'),
+          content: Text(mensajeErrorRed(e, accion: 'exportar el archivo')),
         ),
       );
     }

@@ -1,26 +1,21 @@
-import path from "path";
-import cors from "cors";
-import "dotenv/config";
-import express from "express";
-import helmet from "helmet";
-import { validarVariablesDeEntorno } from "./config/env";
-import { errorHandler } from "./middlewares/errorHandler";
-import { limitadorGlobal } from "./middlewares/rateLimit";
-import { router } from "./routes";
-
-validarVariablesDeEntorno();
-
-const app = express();
-
-app.use(helmet());
-app.use(cors({ origin: process.env.ALLOWED_ORIGIN }));
-app.use(express.json({ limit: "1mb" }));
-app.use(limitadorGlobal);
-app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
-app.use(router);
-app.use(errorHandler);
+import { app } from "./app";
+import { reportarErrorInesperado } from "./config/sentry";
 
 const port = Number(process.env.PORT) || 4000;
+
+// Última red antes de que el proceso muera sin dejar rastro: sin esto, un
+// throw fuera de una ruta de Express (ej. en un callback async sin catch)
+// tumba el servidor sin avisarle a nadie más que la consola.
+process.on("uncaughtException", (err) => {
+  console.error("Excepción no capturada:", err);
+  reportarErrorInesperado(err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (razon) => {
+  console.error("Promesa rechazada sin manejar:", razon);
+  reportarErrorInesperado(razon);
+});
 
 app.listen(port, () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);

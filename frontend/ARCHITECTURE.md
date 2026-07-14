@@ -11,23 +11,29 @@ más carpetas.
 ```
 lib/
 ├── models/       # Domain: entidades inmutables + fromJson/toJson (snake_case ↔ Dart)
-├── services/     # Data: contrato abstracto por entidad + implementación Supabase/caché
-│   ├── <entidad>_repository.dart       # abstract class — el contrato
-│   ├── supabase/supabase_<entidad>_repository.dart  # implementación real
-│   └── cache/                          # caché en disco (SharedPreferences) para catálogos
+├── services/     # Data: contrato abstracto por entidad + implementación PowerSync/API/caché
+│   ├── <entidad>_repository.dart              # abstract class — el contrato
+│   ├── powersync/powersync_<entidad>_repository.dart  # catálogos/escritura offline-first (SQLite local + sync)
+│   ├── api/api_<entidad>_repository.dart      # lecturas/escrituras que van directo a la API REST
+│   └── cache/                                 # caché en disco (SharedPreferences) para catálogos
 ├── state/        # Riverpod: un provider/notifier por caso de uso, consume services/
 ├── features/     # Presentación, sí separada por rol: auth/, chofer/, administrativo/, finanzas/
 ├── widgets/       # UI compartida entre features (AdminShell, ResponsiveCenter, badges...)
-├── theme/        # Design tokens + breakpoints responsivos
-└── dev/          # Datos demo — se borra en cuanto todos los repositorios estén conectados
+└── theme/        # Design tokens + breakpoints responsivos
 ```
+
+Cada entidad usa PowerSync o la API REST directa según si necesita lectura
+offline-first (catálogos, cargas, solicitudes) o no (reportes, semana
+operativa, login) — ver el comentario de cabecera de cada
+`Api*Repository`/`PowerSync*Repository` en `state/providers.dart` para el
+porqué de cada elección.
 
 ## Regla de dependencia
 
 `features/` → `state/` → `services/` → `models/`. Nunca al revés: un
 repositorio no importa nada de `features/`, un modelo no importa nada de
-`services/`. Un widget de `features/` no debe llamar a Supabase directo — pasa
-siempre por un provider en `state/`.
+`services/`. Un widget de `features/` no debe llamar a PowerSync/dio directo —
+pasa siempre por un provider en `state/`.
 
 ## Patrón de un repositorio nuevo
 
@@ -35,13 +41,14 @@ siempre por un provider en `state/`.
 2. `services/<entidad>_repository.dart` — `abstract class` con los métodos que
    la UI necesita (no CRUD genérico; los métodos reflejan casos de uso reales,
    ej. `listarPendientesPorObra`, no `listAll`).
-3. `services/supabase/supabase_<entidad>_repository.dart` — implementación
-   real contra Supabase.
+3. `services/powersync/powersync_<entidad>_repository.dart` (si necesita
+   lectura offline-first) o `services/api/api_<entidad>_repository.dart` (si
+   siempre hay red) — implementación real.
 4. `state/providers.dart` — registra el provider apuntando a la
-   implementación Supabase.
-5. Si el dato es un catálogo casi-estático (obras, ingenieros, tipos): agrega
-   cache-first en `state/catalogos_provider.dart` siguiendo el mismo patrón
-   que `obrasCatalogoProvider`.
+   implementación elegida.
+5. Si el dato es un catálogo casi-estático (obras, tipos): agrega cache-first
+   en `state/catalogos_provider.dart` siguiendo el mismo patrón que
+   `obrasCatalogoProvider`.
 
 ## Responsividad
 

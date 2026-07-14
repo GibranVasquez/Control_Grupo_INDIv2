@@ -37,6 +37,30 @@ class AuthController extends Notifier<AsyncValue<void>> {
     });
   }
 
+  /// Autoregistro público de chofer (ver registro_chofer_page.dart): crea el
+  /// perfil ya activo y deja la sesión lista, igual que [iniciarSesion].
+  Future<void> registrarChofer({
+    required String nombreCompleto,
+    required String numeroEmpleado,
+    required String password,
+    String? area,
+  }) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final perfil = await ref.read(perfilRepositoryProvider).registrarChofer(
+            nombreCompleto: nombreCompleto,
+            numeroEmpleado: numeroEmpleado,
+            password: password,
+            area: area,
+          );
+      ref.read(sesionProvider.notifier).iniciarSesion(perfil);
+      await ref.read(powerSyncClientProvider).conectar();
+      await ref
+          .read(credencialesStorageProvider)
+          .guardar(usuario: numeroEmpleado, password: password);
+    });
+  }
+
   /// Intenta reabrir sesión con las credenciales guardadas tras una autenticación biométrica
   /// exitosa. Regresa false si no hay credenciales guardadas o la biometría fue rechazada.
   Future<bool> iniciarSesionConBiometria() async {
