@@ -4,11 +4,13 @@ import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
 import { validarVariablesDeEntorno } from "./config/env";
+import { inicializarSentry } from "./config/sentry";
 import { errorHandler } from "./middlewares/errorHandler";
 import { limitadorGlobal } from "./middlewares/rateLimit";
 import { router } from "./routes";
 
 validarVariablesDeEntorno();
+inicializarSentry();
 
 export const app = express();
 
