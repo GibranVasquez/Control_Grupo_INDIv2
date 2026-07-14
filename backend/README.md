@@ -51,14 +51,30 @@ agregados), pero ahora expuestas como endpoints REST propios en vez de tablas
 y vistas de Supabase. Los modelos en `frontend/lib/models/` deben mantenerse
 alineados con los shapes JSON que devuelva esta API.
 
-## Pendiente
+## Estado de la migración
 
-- Definir los modelos Prisma (`prisma/schema.prisma`) equivalentes a las
-  entidades de negocio y generar la primera migración.
-- Diseñar los endpoints REST (rutas, payloads, códigos de estado) que
-  reemplazan a las tablas/vistas antes servidas por Supabase.
-- Definir el flujo de autenticación (registro/login, emisión y expiración de
-  JWT, hashing de contraseñas) y el manejo de roles (antes `perfiles.rol`).
-- Coordinar con el frontend el reemplazo de los repositorios en
-  `frontend/lib/services/` y la eliminación de la dependencia
-  `supabase_flutter` una vez que la API esté lista.
+La migración descrita arriba ya está completa:
+
+- Modelos Prisma para las 9 entidades de negocio (`prisma/schema.prisma`),
+  con su migración inicial en `prisma/migracion_grupo_indi.sql` (script SQL
+  puro en vez de `prisma migrate`, ver instrucciones de uso en el propio
+  archivo).
+- Endpoints REST para todas las entidades (`src/routes/`): perfiles
+  (incluyendo activar/desactivar acceso), obras, vehículos, precios de
+  combustible, solicitudes de autorización, cargas y reportes (con
+  exportación a Excel).
+- Flujo de autenticación completo: login, autoregistro de chofer, JWT
+  (compartido con PowerSync) y manejo de roles vía middlewares.
+- El frontend ya no depende de `supabase_flutter`; los repositorios en
+  `frontend/lib/services/` consumen esta API.
+
+Además, ya se agregó lo siguiente (no contemplado en el alcance original de
+esta migración): almacenamiento de fotos de ticket en R2/S3-compatible (ver
+[`ALMACENAMIENTO.md`](./ALMACENAMIENTO.md)), sincronización offline-first vía
+PowerSync self-hosted con TLS contra Postgres en Railway (ver
+[`powersync/POWERSYNC.md`](./powersync/POWERSYNC.md)), y monitoreo de errores
+inesperados con Sentry (opcional, ver `SENTRY_DSN` en `.env.example`).
+
+No hay pendientes de arquitectura abiertos. Decisiones evaluadas y pospuestas
+a propósito (ej. refresh token) están documentadas en
+[`DECISIONES.md`](./DECISIONES.md), no en esta sección.
