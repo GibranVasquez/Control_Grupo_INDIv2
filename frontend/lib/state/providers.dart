@@ -118,6 +118,17 @@ final reportesRepositoryProvider = Provider<ReportesRepository>((ref) {
   return ApiReportesRepository(apiClient: ref.watch(apiClientProvider));
 });
 
+/// Semana operativa abierta de una obra (finanzas siempre pasa [obraId];
+/// chofer/administrativo lo ignoran en el backend, ver semana_operativa_repository.dart).
+final semanaActualProvider = FutureProvider.family<SemanaOperativa, String>((
+  ref,
+  obraId,
+) {
+  return ref
+      .watch(semanaOperativaRepositoryProvider)
+      .obtenerActual(obraId: obraId);
+});
+
 final biometriaServiceProvider = Provider<BiometriaService>(
   (ref) => BiometriaService(),
 );

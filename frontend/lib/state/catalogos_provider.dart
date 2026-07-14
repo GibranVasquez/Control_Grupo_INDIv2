@@ -1,12 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../dev/datos_demo.dart';
 import '../models/models.dart';
 import '../services/cache/catalogo_cache_service.dart';
+import 'providers.dart';
 
 const _claveCatalogoObras = 'catalogo_obras';
-const _claveCatalogoIngenieros = 'catalogo_ingenieros';
 
 /// Se sobreescribe en main.dart con la instancia real (SharedPreferences.getInstance() es
 /// async y debe resolverse antes de runApp; overrideWithValue es el patrón estándar de Riverpod).
@@ -21,8 +20,8 @@ final catalogoCacheServiceProvider = Provider<CatalogoCacheService>((ref) {
 });
 
 /// Catálogo de obras: cache-first. Si hay copia vigente en disco la devuelve de inmediato
-/// (sin esperar red); si no, "trae" de DatosDemo (aquí iría la llamada a ObraRepository
-/// cuando exista) y la guarda en caché para la próxima apertura de la app.
+/// (sin esperar red); si no, la trae de [ObraRepository] y la guarda en caché para la
+/// próxima apertura de la app.
 final obrasCatalogoProvider = FutureProvider<List<Obra>>((ref) async {
   final cache = ref.watch(catalogoCacheServiceProvider);
 
@@ -31,8 +30,7 @@ final obrasCatalogoProvider = FutureProvider<List<Obra>>((ref) async {
     return enCache.map(Obra.fromJson).toList();
   }
 
-  // TODO: reemplazar por ObraRepository.listar() cuando el repositorio esté conectado a Supabase.
-  final obras = DatosDemo.obras;
+  final obras = await ref.watch(obraRepositoryProvider).listarTodas();
   await cache.guardar(
     _claveCatalogoObras,
     obras.map((o) => o.toJson()).toList(),
@@ -40,31 +38,10 @@ final obrasCatalogoProvider = FutureProvider<List<Obra>>((ref) async {
   return obras;
 });
 
-/// Catálogo de ingenieros elegibles en el registro (`registro_chofer_page.dart`). Mismo patrón
-/// cache-first que [obrasCatalogoProvider].
-final ingenierosCatalogoProvider = FutureProvider<List<Perfil>>((ref) async {
-  final cache = ref.watch(catalogoCacheServiceProvider);
-
-  final enCache = cache.leer(_claveCatalogoIngenieros);
-  if (enCache != null) {
-    return enCache.map(Perfil.fromJson).toList();
-  }
-
-  // TODO: reemplazar por PerfilRepository.listarIngenieros() cuando esté conectado a Supabase.
-  final ingenieros = DatosDemo.ingenierosDemo;
-  await cache.guardar(
-    _claveCatalogoIngenieros,
-    ingenieros.map((i) => i.toJson()).toList(),
-  );
-  return ingenieros;
-});
-
-/// Fuerza refrescar ambos catálogos contra la fuente real la próxima vez que se lean
+/// Fuerza refrescar el catálogo contra la fuente real la próxima vez que se lea
 /// (ej. si un admin agrega una obra nueva y no quieres esperar a que expire la caché).
 Future<void> invalidarCatalogos(Ref ref) async {
   final cache = ref.read(catalogoCacheServiceProvider);
   await cache.invalidar(_claveCatalogoObras);
-  await cache.invalidar(_claveCatalogoIngenieros);
   ref.invalidate(obrasCatalogoProvider);
-  ref.invalidate(ingenierosCatalogoProvider);
 }
