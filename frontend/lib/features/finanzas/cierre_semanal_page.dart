@@ -7,6 +7,7 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 
 /// Cierre de la semana operativa (Fase 5). El backend valida que no se pueda
 /// reabrir ni volver a cerrar; aquí solo se dispara la llamada y se refleja el estado.
@@ -80,7 +81,7 @@ class _CierreSemanalPageState extends ConsumerState<CierreSemanalPage> {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Text('No se pudo cargar el catálogo de obras: $e'),
+        error: (e, _) => Text(mensajeErrorRed(e, accion: 'cargar el catálogo de obras')),
       ),
     );
   }
@@ -181,7 +182,7 @@ class _CuerpoCierre extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('No se pudo cargar la semana operativa: $e'),
+      error: (e, _) => Text(mensajeErrorRed(e, accion: 'cargar la semana operativa')),
     );
   }
 }

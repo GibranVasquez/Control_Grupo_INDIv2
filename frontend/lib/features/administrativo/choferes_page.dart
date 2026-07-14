@@ -6,6 +6,7 @@ import '../../state/providers.dart';
 import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 /// Choferes de la obra del administrativo — solo consulta y activar/desactivar acceso.
@@ -28,7 +29,7 @@ class _ChoferesPageState extends ConsumerState<ChoferesPage> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo actualizar el acceso: $e')),
+        SnackBar(content: Text(mensajeErrorRed(e, accion: 'actualizar el acceso'))),
       );
     } finally {
       if (mounted) setState(() => _actualizando.remove(perfil.id));

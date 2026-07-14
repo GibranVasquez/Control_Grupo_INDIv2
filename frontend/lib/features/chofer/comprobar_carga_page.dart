@@ -9,6 +9,7 @@ import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 class ComprobarCargaPage extends ConsumerStatefulWidget {
@@ -269,7 +270,7 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
       if (!mounted) return;
       setState(() => _enviando = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo registrar la carga: $e')),
+        SnackBar(content: Text(mensajeErrorRed(e, accion: 'registrar la carga'))),
       );
     }
   }

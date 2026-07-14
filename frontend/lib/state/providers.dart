@@ -31,6 +31,14 @@ final powerSyncDatabaseProvider = Provider<PowerSyncDatabase>((ref) {
   );
 });
 
+/// true solo cuando PowerSync de verdad pudo hablar con el servicio de sync
+/// (no solo "hay wifi") — mismo criterio que colaFotosTicketWatcherProvider.
+/// Alimenta el banner global de "sin conexión" en main.dart.
+final conectividadProvider = StreamProvider<bool>((ref) {
+  final database = ref.watch(powerSyncDatabaseProvider);
+  return database.statusStream.map((status) => status.connected).distinct();
+});
+
 final tokenStorageProvider = Provider<TokenStorage>(
   (ref) => const TokenStorage(),
 );

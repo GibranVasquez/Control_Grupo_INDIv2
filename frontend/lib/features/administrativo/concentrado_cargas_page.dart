@@ -13,6 +13,7 @@ import '../../state/session_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 /// Filtros aplicables al concentrado, además del periodo (Día/Semana/Mes/Año).
@@ -126,7 +127,7 @@ class _ConcentradoCargasPageState extends ConsumerState<ConcentradoCargasPage> {
       messenger.showSnackBar(
         SnackBar(
           backgroundColor: AppColors.error,
-          content: Text('No se pudo exportar: $e'),
+          content: Text(mensajeErrorRed(e, accion: 'exportar el archivo')),
         ),
       );
     }

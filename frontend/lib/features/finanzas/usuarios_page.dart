@@ -8,6 +8,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
 import '../../theme/app_typography.dart';
+import '../../utils/errores_red.dart';
 import '../../widgets/widgets.dart';
 
 /// Alta y activar/desactivar de usuarios (Fase 5). Solo se puede dar de alta
@@ -306,7 +307,7 @@ class _NuevoChoferDialogState extends ConsumerState<_NuevoChoferDialog> {
                           }),
                         ),
                         loading: () => const LinearProgressIndicator(),
-                        error: (e, _) => Text('No se pudo cargar el catálogo de obras: $e'),
+                        error: (e, _) => Text(mensajeErrorRed(e, accion: 'cargar el catálogo de obras')),
                       ),
                       if (_obraId != null) ...[
                         const SizedBox(height: 14),
@@ -326,7 +327,7 @@ class _NuevoChoferDialogState extends ConsumerState<_NuevoChoferDialog> {
                                 onChanged: (v) => setState(() => _vehiculoId = v),
                               ),
                               loading: () => const LinearProgressIndicator(),
-                              error: (e, _) => Text('No se pudo cargar el catálogo de vehículos: $e'),
+                              error: (e, _) => Text(mensajeErrorRed(e, accion: 'cargar el catálogo de vehículos')),
                             );
                           },
                         ),

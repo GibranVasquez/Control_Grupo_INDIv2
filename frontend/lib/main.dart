@@ -8,6 +8,7 @@ import 'services/powersync/powersync_client.dart';
 import 'state/catalogos_provider.dart';
 import 'state/providers.dart';
 import 'theme/app_theme.dart';
+import 'widgets/banner_sin_conexion.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +44,12 @@ class MainApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: router,
+      builder: (context, child) => Column(
+        children: [
+          const BannerSinConexion(),
+          Expanded(child: child ?? const SizedBox.shrink()),
+        ],
+      ),
     );
   }
 }
