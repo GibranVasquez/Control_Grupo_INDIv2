@@ -91,6 +91,27 @@ class ApiPerfilRepository implements PerfilRepository {
     return Perfil.fromJson(respuesta.data!['perfil'] as Map<String, dynamic>);
   }
 
+  @override
+  Future<Perfil> registrarChofer({
+    required String nombreCompleto,
+    required String numeroEmpleado,
+    required String password,
+    String? area,
+  }) async {
+    final respuesta = await apiClient.dio.post<Map<String, dynamic>>(
+      '/auth/registro-chofer',
+      data: {
+        'nombre_completo': nombreCompleto,
+        'numero_empleado': numeroEmpleado,
+        'password': password,
+        'area': ?area,
+      },
+    );
+    final cuerpo = respuesta.data!;
+    await tokenStorage.guardar(cuerpo['token'] as String);
+    return Perfil.fromJson(cuerpo['perfil'] as Map<String, dynamic>);
+  }
+
   Map<String, dynamic> _filaAJson(Map<String, dynamic> fila) => {
         'id': fila['id'],
         'auth_user_id': fila['auth_user_id'],

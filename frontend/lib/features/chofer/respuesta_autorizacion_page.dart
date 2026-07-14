@@ -25,13 +25,23 @@ class RespuestaAutorizacionPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      // Antes esta pantalla no tenía AppBar ni botón alguno: si la solicitud
+      // había sido rechazada, no quedaba ninguna acción visible para salir
+      // (solo el gesto de retroceso del sistema, sin ninguna señal de que
+      // existiera). Ver mejora de navegación.
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.navy,
+        elevation: 0,
+        title: Text(autorizado ? 'Solicitud autorizada' : 'Solicitud rechazada'),
+      ),
       body: SafeArea(
         child: ResponsiveCenter(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                const SizedBox(height: 32),
+                const SizedBox(height: 8),
                 Container(
                   width: 82,
                   height: 82,
@@ -185,17 +195,24 @@ class RespuestaAutorizacionPage extends StatelessWidget {
                   ),
                 ],
                 const Spacer(),
-                if (autorizado)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => context.push(
-                        AppRoutes.comprobarCarga,
-                        extra: solicitud,
-                      ),
-                      child: const Text('✓ Ya cargué · comprobar'),
-                    ),
-                  ),
+                SizedBox(
+                  width: double.infinity,
+                  child: autorizado
+                      ? ElevatedButton(
+                          onPressed: () => context.push(
+                            AppRoutes.comprobarCarga,
+                            extra: solicitud,
+                          ),
+                          child: const Text('✓ Ya cargué · comprobar'),
+                        )
+                      // Rechazada: no hay más acción que tomar sobre esta
+                      // solicitud, pero debe quedar un cierre explícito en
+                      // vez de dejar la pantalla sin ningún botón.
+                      : OutlinedButton(
+                          onPressed: () => context.pop(),
+                          child: const Text('Entendido'),
+                        ),
+                ),
               ],
             ),
           ),

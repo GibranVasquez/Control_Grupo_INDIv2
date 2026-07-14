@@ -125,7 +125,7 @@ class _UsuariosPageState extends ConsumerState<UsuariosPage> {
                           columnSpacing: 20,
                           columns: const [
                             DataColumn2(label: Text('NOMBRE'), size: ColumnSize.L),
-                            DataColumn2(label: Text('Nº EMPLEADO'), size: ColumnSize.M),
+                            DataColumn2(label: Text('USUARIO'), size: ColumnSize.M),
                             DataColumn2(label: Text('ROL'), size: ColumnSize.M),
                             DataColumn2(label: Text('OBRA'), size: ColumnSize.M),
                             DataColumn2(label: Text('ACTIVO'), size: ColumnSize.S),
@@ -282,7 +282,7 @@ class _NuevoChoferDialogState extends ConsumerState<_NuevoChoferDialog> {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _numeroEmpleadoCtrl,
-                        decoration: const InputDecoration(labelText: 'Número de empleado', hintText: 'EMP-1004'),
+                        decoration: const InputDecoration(labelText: 'Usuario', hintText: 'antonio.ponce'),
                         style: AppTypography.mono(fontSize: 15, color: AppColors.navy),
                         validator: (v) => (v?.trim().isEmpty ?? true) ? 'Campo requerido' : null,
                       ),

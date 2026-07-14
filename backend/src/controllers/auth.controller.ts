@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { iniciarSesion, obtenerPerfilPublicoPorId } from "../services/auth.service";
+import { iniciarSesion, obtenerPerfilPublicoPorId, registrarChofer } from "../services/auth.service";
 import { AppError } from "../utils/AppError";
 
 // Express 5 reenvía automáticamente los rechazos de promesas de handlers
@@ -9,6 +9,11 @@ export async function login(req: Request, res: Response): Promise<void> {
   const { numero_empleado, password } = req.body;
   const resultado = await iniciarSesion(numero_empleado, password);
   res.json(resultado);
+}
+
+export async function registro(req: Request, res: Response): Promise<void> {
+  const resultado = await registrarChofer(req.body ?? {});
+  res.status(201).json(resultado);
 }
 
 export async function perfilActual(req: Request, res: Response): Promise<void> {

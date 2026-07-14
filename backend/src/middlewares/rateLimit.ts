@@ -19,3 +19,15 @@ export const limitadorLogin = rateLimit({
     error: "Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.",
   },
 });
+
+/** Autoregistro público de choferes (`POST /auth/registro-chofer`): mismo
+ * criterio que el login, para no permitir automatizar altas masivas. */
+export const limitadorRegistro = rateLimit({
+  windowMs: QUINCE_MINUTOS_MS,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Demasiados intentos de registro. Intenta de nuevo en 15 minutos.",
+  },
+});
