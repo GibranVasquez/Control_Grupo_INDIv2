@@ -16,11 +16,21 @@ class AuthController extends Notifier<AsyncValue<void>> {
       final perfil = await ref
           .read(perfilRepositoryProvider)
           .iniciarSesion(numeroEmpleado: numeroEmpleado, password: password);
-      ref.read(sesionProvider.notifier).iniciarSesion(perfil);
       // El JWT ya quedó guardado en TokenStorage dentro de iniciarSesion() de
       // ApiPerfilRepository; PowerSync reutiliza ese mismo token al conectar
       // (ver services/powersync/powersync_client.dart), sin login aparte.
+      //
+      // conectar() va ANTES de sesionProvider.iniciarSesion(): setear la
+      // sesión dispara el redirect del router de inmediato (_SesionListenable
+      // en app_router.dart escucha sesionProvider de forma síncrona), lo que
+      // monta la pantalla del rol (ej. ChoferHomePage) y esta ya consulta el
+      // catálogo local de PowerSync (vehiculoPorIdProvider). Si la sesión se
+      // marca antes de que termine la primera sincronización, esa consulta
+      // corre contra un catálogo local todavía vacío y truena con "no
+      // encontrado en el catálogo local" — pasa siempre en un dispositivo
+      // nuevo o recién deslogueado, no solo cuando la red va lenta.
       await ref.read(powerSyncClientProvider).conectar();
+      ref.read(sesionProvider.notifier).iniciarSesion(perfil);
       await ref
           .read(credencialesStorageProvider)
           .guardar(usuario: numeroEmpleado, password: password);

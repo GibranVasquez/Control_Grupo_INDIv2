@@ -45,23 +45,15 @@ class ChoferHomePage extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (vehiculoAsync.hasError) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Center(
-            child: Text('No se pudo cargar tu vehículo: ${vehiculoAsync.error}'),
-          ),
-        ),
+      return _PantallaErrorConReintento(
+        mensaje: 'No se pudo cargar tu vehículo: ${vehiculoAsync.error}',
+        onReintentar: () => ref.invalidate(vehiculoPorIdProvider(perfil.vehiculoId!)),
       );
     }
     if (solicitudesAsync.hasError) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Center(
-            child: Text('No se pudieron cargar tus solicitudes: ${solicitudesAsync.error}'),
-          ),
-        ),
+      return _PantallaErrorConReintento(
+        mensaje: 'No se pudieron cargar tus solicitudes: ${solicitudesAsync.error}',
+        onReintentar: () => ref.invalidate(solicitudesPorChoferProvider(perfil.id)),
       );
     }
 
@@ -69,6 +61,43 @@ class ChoferHomePage extends ConsumerWidget {
       perfil: perfil,
       vehiculo: vehiculoAsync.requireValue,
       solicitudes: solicitudesAsync.requireValue,
+    );
+  }
+}
+
+class _PantallaErrorConReintento extends StatelessWidget {
+  const _PantallaErrorConReintento({
+    required this.mensaje,
+    required this.onReintentar,
+  });
+
+  final String mensaje;
+  final VoidCallback onReintentar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(mensaje, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: onReintentar,
+                  child: const Text('Reintentar'),
+                ),
+                const SizedBox(height: 8),
+                const CerrarSesionButton(color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
