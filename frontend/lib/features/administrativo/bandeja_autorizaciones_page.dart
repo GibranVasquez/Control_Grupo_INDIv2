@@ -740,9 +740,7 @@ class _PanelReglas extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, Color(0xFF0A3FB0)],
-              ),
+              gradient: AppGradients.budgetCard,
               borderRadius: BorderRadius.circular(AppRadii.card),
             ),
             child: Column(

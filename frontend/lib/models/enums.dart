@@ -3,10 +3,20 @@ enum RolUsuario {
   chofer,
   administrativo;
 
-  static RolUsuario fromDb(String value) => values.firstWhere(
-        (r) => r.name == value,
-        orElse: () => throw ArgumentError('Rol desconocido: $value'),
-      );
+  /// "finanzas" ya no es un valor propio (fusionado en administrativo, ver
+  /// migracion_fusion_roles.sql) — pero mientras el backend real que consume
+  /// esta app no aplique esa migración, sigue pudiendo devolver 'finanzas'
+  /// para una cuenta vieja. Sin este mapeo, ese login lanzaría un
+  /// ArgumentError sin capturar justo al deserializar el perfil (ver
+  /// perfil.dart#fromJson) y tronaría la app. Quitar este caso especial en
+  /// cuanto el backend en uso ya tenga la fusión aplicada.
+  static RolUsuario fromDb(String value) {
+    if (value == 'finanzas') return RolUsuario.administrativo;
+    return values.firstWhere(
+      (r) => r.name == value,
+      orElse: () => throw ArgumentError('Rol desconocido: $value'),
+    );
+  }
 
   String toDb() => name;
 }

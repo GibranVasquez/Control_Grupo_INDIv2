@@ -236,7 +236,7 @@ class _TarjetaKpi extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: gradiente ? null : AppColors.navy,
-        gradient: gradiente ? const LinearGradient(colors: [AppColors.primary, Color(0xFF0A3FB0)]) : null,
+        gradient: gradiente ? AppGradients.budgetCard : null,
         borderRadius: BorderRadius.circular(AppRadii.card),
       ),
       child: Column(

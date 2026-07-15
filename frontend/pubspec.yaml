@@ -1,5 +1,5 @@
 name: gi_control_combustible
-description: "A new Flutter project."
+description: "INDI Combustible — control de flota y cargas de combustible."
 publish_to: 'none'
 version: 0.1.0+1
 

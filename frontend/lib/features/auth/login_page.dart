@@ -734,11 +734,7 @@ class _TarjetaRegistroState extends State<_TarjetaRegistro> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadii.card - 1),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primary, Color(0xFF0A3FB0)],
-                ),
+                gradient: AppGradients.budgetCard,
               ),
               child: Row(
                 children: [

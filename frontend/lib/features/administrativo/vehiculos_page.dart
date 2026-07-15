@@ -236,11 +236,7 @@ class _TarjetaVehiculo extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primary, Color(0xFF0A3FB0)],
-                ),
+                gradient: AppGradients.budgetCard,
                 borderRadius: BorderRadius.circular(AppRadii.miniCard),
               ),
               child: Icon(
