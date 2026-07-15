@@ -18,7 +18,7 @@ import { PrismaClient } from "@prisma/client";
 // las contraseñas otra vez).
 // ---------------------------------------------------------------------
 
-const NUMEROS_EMPLEADO = ["EMP-1001", "EMP-2001", "EMP-3001"] as const;
+const NUMEROS_EMPLEADO = ["mario", "laura", "andrea"] as const;
 
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";
 

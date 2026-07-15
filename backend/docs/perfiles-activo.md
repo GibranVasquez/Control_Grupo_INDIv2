@@ -50,7 +50,7 @@ no `"true"` string ni `1`).
   "perfil": {
     "id": "3f9b6e2a-1234-4c1a-9a3b-000000000000",
     "auth_user_id": "a1b2c3d4-...",
-    "usuario": "EMP-2001",
+    "usuario": "laura",
     "nombre_completo": "Juan Pérez",
     "rol": "chofer",
     "obra_id": "b2c3d4e5-...",

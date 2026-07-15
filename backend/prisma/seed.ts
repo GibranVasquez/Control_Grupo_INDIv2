@@ -22,21 +22,21 @@ async function main() {
 
   const perfiles = [
     {
-      usuario: "EMP-1001",
+      usuario: "mario",
       nombreCompleto: "Juan Pérez",
       rol: "chofer" as const,
       obraId: OBRA_LOS_PINOS_ID,
       vehiculoId: VEHICULO_FORD_F150_ID,
     },
     {
-      usuario: "EMP-2001",
+      usuario: "laura",
       nombreCompleto: "María López",
       rol: "administrativo" as const,
       obraId: OBRA_LOS_PINOS_ID,
       vehiculoId: null,
     },
     {
-      usuario: "EMP-3001",
+      usuario: "andrea",
       nombreCompleto: "Carlos Ruiz",
       rol: "finanzas" as const,
       obraId: null,

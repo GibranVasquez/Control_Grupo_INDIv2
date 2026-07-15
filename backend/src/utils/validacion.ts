@@ -48,7 +48,8 @@ const REGEX_USUARIO = /^[a-zA-Z0-9._]+$/;
  * números, punto y guión bajo. Aplica ÚNICAMENTE a la creación de una cuenta
  * nueva (autoregistro) — el login busca por el valor tal cual está guardado,
  * sin re-validar el formato, para no bloquear cuentas ya existentes con un
- * formato distinto (ej. "EMP-1001", con guión).
+ * formato distinto (ej. los antiguos "EMP-1001"/"EMP-2001"/"EMP-3001" de las
+ * cuentas semilla, con guión — ya renombradas, ver prisma/seed.ts).
  */
 export function esUsuarioValido(valor: unknown): valor is string {
   return (

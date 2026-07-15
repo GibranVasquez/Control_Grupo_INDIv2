@@ -450,9 +450,9 @@ insert into fondo_semanal (obra_id, numero_semana, periodo_inicio, periodo_fin, 
 -- una vez generado el hash desde Node (bcrypt.hashSync('la-contraseña', 10)):
 --
 -- insert into perfiles (usuario, password_hash, nombre_completo, rol, obra_id, vehiculo_id) values
---   ('EMP-1001', '<hash-bcrypt>', 'Juan Pérez', 'chofer', 'a1000000-0000-0000-0000-000000000001', 'b2000000-0000-0000-0000-000000000001'),
---   ('EMP-2001', '<hash-bcrypt>', 'María López', 'administrativo', 'a1000000-0000-0000-0000-000000000001', null),
---   ('EMP-3001', '<hash-bcrypt>', 'Carlos Ruiz', 'finanzas', null, null);
+--   ('mario', '<hash-bcrypt>', 'Juan Pérez', 'chofer', 'a1000000-0000-0000-0000-000000000001', 'b2000000-0000-0000-0000-000000000001'),
+--   ('laura', '<hash-bcrypt>', 'María López', 'administrativo', 'a1000000-0000-0000-0000-000000000001', null),
+--   ('andrea', '<hash-bcrypt>', 'Carlos Ruiz', 'finanzas', null, null);
 
 -- =====================================================================
 -- FIN DEL SCRIPT

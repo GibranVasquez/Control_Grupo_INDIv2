@@ -1,7 +1,7 @@
 // Suite de permisos por rol (chofer/administrativo/finanzas). Corre contra la
 // BD real configurada en backend/.env (ver seed.ts para los perfiles usados
-// aquí: EMP-1001 chofer, EMP-2001 administrativo, ambos de la obra "Los
-// Pinos"; EMP-3001 finanzas, sin obra). No crea ni modifica datos: todas las
+// aquí: mario chofer, laura administrativo, ambos de la obra "Los Pinos";
+// andrea finanzas, sin obra). No crea ni modifica datos: todas las
 // aserciones son de autorización (401/403/200 antes de tocar la BD para
 // escritura), así que es seguro correrla repetidamente sin ensuciar la BD
 // compartida.
@@ -33,14 +33,14 @@ describe("permisos por rol", () => {
   it("login con contraseña incorrecta responde 401", async () => {
     const respuesta = await request(app)
       .post("/auth/login")
-      .send({ usuario: "EMP-1001", password: "contraseña-incorrecta" });
+      .send({ usuario: "mario", password: "contraseña-incorrecta" });
     expect(respuesta.status).toBe(401);
   });
 
   beforeAll(async () => {
-    tokenChofer = await login("EMP-1001");
-    tokenAdministrativo = await login("EMP-2001");
-    tokenFinanzas = await login("EMP-3001");
+    tokenChofer = await login("mario");
+    tokenAdministrativo = await login("laura");
+    tokenFinanzas = await login("andrea");
   });
 
   it("sin token, una ruta protegida responde 401", async () => {

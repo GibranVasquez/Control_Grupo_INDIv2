@@ -72,15 +72,14 @@ si además quieres levantar PowerSync (paso 7).
    npm run seed
    ```
    Crea (o actualiza, es idempotente vía `upsert`) 3 perfiles de prueba:
-   `EMP-1001` (chofer), `EMP-2001` (administrativo), `EMP-3001` (finanzas),
-   todos con password `1234`. Nota: estos 3 usuarios semilla tienen guion en
-   el usuario (`EMP-1001`), que ya **no** cumpliría la regex de formato que
-   ahora exige `POST /auth/registro-chofer` para cuentas nuevas
-   (`^[a-zA-Z0-9._]+$`, ver `src/utils/validacion.ts#esUsuarioValido`) — no
-   es una inconsistencia: el seed inserta directo vía Prisma sin pasar por
-   esa validación (que solo corre en la creación por HTTP), y el login nunca
-   revalida el formato de una cuenta ya existente, solo busca por el valor
-   guardado tal cual.
+   `mario` (chofer), `laura` (administrativo), `andrea` (finanzas), todos con
+   password `1234`. Son nombres de marcador de posición para pruebas (más
+   adelante serán cuentas reales de personas distintas). Nota: `upsert` está
+   indexado por el valor de `usuario` — si alguna vez vuelves a renombrar
+   estos 3, `npm run seed` no renombra una cuenta existente (crearía una
+   cuenta nueva con el nombre nuevo, dejando la vieja huérfana); en ese caso
+   usa un `UPDATE perfiles SET usuario = '...' WHERE usuario = '...'` directo
+   y luego ajusta `seed.ts`.
 
 5. **Arrancar el servidor.**
    ```bash
