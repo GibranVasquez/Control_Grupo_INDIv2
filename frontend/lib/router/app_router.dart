@@ -9,7 +9,6 @@ import '../features/chofer/chofer_home_page.dart';
 import '../features/chofer/comprobar_carga_page.dart';
 import '../features/chofer/respuesta_autorizacion_page.dart';
 import '../features/chofer/solicitar_litros_page.dart';
-import '../features/finanzas/finanzas_home_page.dart';
 import '../models/models.dart';
 import '../state/session_provider.dart';
 
@@ -23,7 +22,6 @@ class AppRoutes {
   static const respuestaAutorizacion = '/chofer/respuesta';
   static const comprobarCarga = '/chofer/comprobar';
   static const administrativo = '/administrativo';
-  static const finanzas = '/finanzas';
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -68,10 +66,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.administrativo,
         builder: (context, state) => const AdministrativoHomePage(),
       ),
-      GoRoute(
-        path: AppRoutes.finanzas,
-        builder: (context, state) => const FinanzasHomePage(),
-      ),
     ],
   );
 });
@@ -98,7 +92,6 @@ String? _redirigirSegunSesion(Ref ref, GoRouterState state) {
 String _rutaHomePorRol(RolUsuario rol) => switch (rol) {
       RolUsuario.chofer => AppRoutes.chofer,
       RolUsuario.administrativo => AppRoutes.administrativo,
-      RolUsuario.finanzas => AppRoutes.finanzas,
     };
 
 /// Puente para que go_router escuche cambios de sesión sin acoplarse a Riverpod directamente.

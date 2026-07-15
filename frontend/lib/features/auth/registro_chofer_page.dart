@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/enums.dart';
+import '../../services/perfil_repository.dart';
 import '../../state/auth_controller.dart';
+import '../../state/providers.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_radii.dart';
 import '../../theme/app_shadows.dart';
@@ -21,10 +23,12 @@ enum _TipoUnidadFormulario { vehiculo, pipa, maquinaria }
 ///
 /// Llama a `POST /auth/registro-chofer` (autoregistro público, activo de
 /// inmediato — ver auth.service.ts#registrarChofer): el chofer queda sin
-/// obra/vehículo asignados hasta que un administrativo lo vincule desde
-/// Choferes/Usuarios. Los campos que el esquema de perfiles no modela
-/// todavía (correo, edad, tipo de unidad, placas/económico, obra en texto
-/// libre, ingeniero) se guardan como un resumen legible en `area`.
+/// obra/vehículo asignados hasta que un administrativo/finanzas complete su
+/// perfil desde Choferes/Usuarios (`PUT /perfiles/:id`). correo y edad ya son
+/// campos estructurados del perfil (se mandan top-level, no dentro de
+/// `area`); el resto de campos que el esquema todavía no modela (tipo de
+/// unidad, placas/económico, obra en texto libre, ingeniero) se siguen
+/// guardando como un resumen legible en `area`.
 class RegistroChoferPage extends ConsumerStatefulWidget {
   const RegistroChoferPage({super.key});
 
@@ -42,7 +46,6 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
   final _correoCtrl = TextEditingController();
   final _numeroEconomicoCtrl = TextEditingController();
   final _placasCtrl = TextEditingController();
-  final _obraCtrl = TextEditingController();
   final _seReportaConCtrl = TextEditingController();
   final _dondeCargaCtrl = TextEditingController();
   final _usuarioCtrl = TextEditingController();
@@ -55,9 +58,33 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
   bool _verConfirmar = false;
   bool _enviando = false;
 
+  List<ObraOpcion>? _obras;
+  String? _obraSeleccionadaId;
+  String? _errorObras;
+
   bool get _requierePlacas => _tipoUnidad == _TipoUnidadFormulario.vehiculo;
   bool get _requiereNumeroEconomico => !_requierePlacas;
   bool get _esPipa => _tipoUnidad == _TipoUnidadFormulario.pipa;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarObras();
+  }
+
+  Future<void> _cargarObras() async {
+    try {
+      final obras = await ref.read(perfilRepositoryProvider).obrasDisponibles();
+      if (!mounted) return;
+      setState(() {
+        _obras = obras;
+        _errorObras = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorObras = 'No se pudieron cargar las obras.');
+    }
+  }
 
   @override
   void dispose() {
@@ -68,7 +95,6 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
     _correoCtrl.dispose();
     _numeroEconomicoCtrl.dispose();
     _placasCtrl.dispose();
-    _obraCtrl.dispose();
     _seReportaConCtrl.dispose();
     _dondeCargaCtrl.dispose();
     _usuarioCtrl.dispose();
@@ -100,17 +126,15 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
 
   /// Resumen legible de los campos que el esquema de perfiles todavía no
   /// modela (ver comentario de la clase) — se guarda tal cual en `area`.
+  /// correo/edad ya NO van aquí: se mandan como campos top-level (ver _enviar).
   String _construirArea() {
     final partes = <String>[
       'Registro propio',
-      'correo: ${_correoCtrl.text.trim()}',
-      'edad: ${_edadCtrl.text.trim()}',
       'unidad: $_unidadEtiqueta',
       'combustible: ${_tipoCombustible.etiqueta}',
       if (_requierePlacas) 'placas: ${_placasCtrl.text.trim()}',
       if (_requiereNumeroEconomico)
         'económico: ${_numeroEconomicoCtrl.text.trim()}',
-      'obra: ${_obraCtrl.text.trim()}',
       'reporta con: ${_seReportaConCtrl.text.trim()}',
       if (_esPipa) 'carga en: ${_dondeCargaCtrl.text.trim()}',
     ];
@@ -134,8 +158,20 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
         .read(authControllerProvider.notifier)
         .registrarChofer(
           nombreCompleto: nombreCompleto,
-          numeroEmpleado: _usuarioCtrl.text.trim(),
+          usuario: _usuarioCtrl.text.trim(),
           password: _passwordCtrl.text,
+          obraId: _obraSeleccionadaId!,
+          placa: (_requierePlacas ? _placasCtrl.text : _numeroEconomicoCtrl.text)
+              .trim(),
+          // "pipa" es solo una etiqueta de UI (ver _TipoUnidadFormulario):
+          // en la BD colapsa a tipoUnidad "vehiculo", el detalle de pipa
+          // sigue guardándose en el resumen de `area`.
+          tipoUnidad: _tipoUnidad == _TipoUnidadFormulario.maquinaria
+              ? 'maquinaria'
+              : 'vehiculo',
+          tipoCombustible: _tipoCombustible.toDb(),
+          correo: _correoCtrl.text.trim(),
+          edad: int.parse(_edadCtrl.text.trim()),
           area: _construirArea(),
         );
 
@@ -147,7 +183,9 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
       final esConflicto =
           error is DioException && error.response?.statusCode == 409;
       final mensaje = esConflicto
-          ? 'Ese usuario ya existe. Elige otro.'
+          // El backend responde 409 genérico sin decir si chocó el usuario o
+          // el correo (evita revelar cuál de los dos existe ya).
+          ? 'Ese usuario o correo ya existen. Prueba con otros.'
           : 'No pudimos crear tu cuenta. Intenta de nuevo.';
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -157,17 +195,20 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
       return;
     }
 
-    // Sesión ya quedó activa (registrarChofer hace login automático) — el
-    // router redirige solo al home del chofer (ver app_router.dart), igual
-    // que tras un login exitoso normal.
+    // registrarChofer ya NO inicia sesión (el perfil queda sin obra/vehículo
+    // asignados hasta que un administrativo lo complete) — se manda a login
+    // para que el chofer entre ya con su cuenta lista.
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           backgroundColor: AppColors.success,
-          content: Text('¡Bienvenido, ${_nombresCtrl.text.trim()}!'),
+          content: Text(
+            '¡Listo, ${_nombresCtrl.text.trim()}! Ya puedes iniciar sesión.',
+          ),
         ),
       );
+    context.go('/login');
   }
 
   @override
@@ -291,12 +332,13 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
                             const _TituloSeccion('OBRA Y SUPERVISIÓN'),
                             const SizedBox(height: 14),
                             _FilaDosCampos(
-                              izquierda: _Campo(
-                                label: 'OBRA / FRENTE',
-                                controller: _obraCtrl,
-                                hint: 'Libramiento Sur',
-                                textCapitalization: TextCapitalization.words,
-                                validator: (v) => _validarTexto(v, minimo: 2),
+                              izquierda: _SelectorObra(
+                                obras: _obras,
+                                error: _errorObras,
+                                seleccionada: _obraSeleccionadaId,
+                                onChanged: (id) =>
+                                    setState(() => _obraSeleccionadaId = id),
+                                onReintentar: _cargarObras,
                               ),
                               derecha: _Campo(
                                 label: 'SE REPORTA CON',
@@ -330,7 +372,7 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
                               controller: _usuarioCtrl,
                               hint: 'antonio.ponce',
                               mono: true,
-                              validator: (v) => _validarTexto(v, minimo: 3),
+                              validator: _validarUsuario,
                             ),
                             const SizedBox(height: 16),
                             _CampoPassword(
@@ -406,7 +448,19 @@ class _RegistroChoferPageState extends ConsumerState<RegistroChoferPage> {
   String? _validarPassword(String? v) {
     final valor = v ?? '';
     if (valor.isEmpty) return 'Requerido';
-    if (valor.length < 6) return 'Mínimo 6 caracteres';
+    if (valor.length < 8) return 'Mínimo 8 caracteres';
+    return null;
+  }
+
+  /// Mismo formato que exige el backend (^[a-zA-Z0-9._]{3,30}$, ver
+  /// auth.service.ts): solo letras, números, punto y guión bajo.
+  String? _validarUsuario(String? v) {
+    final valor = v?.trim() ?? '';
+    if (valor.isEmpty) return 'Requerido';
+    final regex = RegExp(r'^[a-zA-Z0-9._]{3,30}$');
+    if (!regex.hasMatch(valor)) {
+      return 'Solo letras, números, punto y guión bajo (3-30 caracteres)';
+    }
     return null;
   }
 
@@ -703,6 +757,76 @@ class _SelectorTipoUnidad extends StatelessWidget {
             );
           }).toList(),
         ),
+      ],
+    );
+  }
+}
+
+/// Selector de obra real (no texto libre): el vehículo que se crea junto con
+/// el chofer necesita un `obra_id` válido (ver auth.service.ts#registrarChofer),
+/// así que aquí solo se elige entre las obras activas que expone el backend
+/// (`GET /auth/obras-disponibles`, sin sesión previa).
+class _SelectorObra extends StatelessWidget {
+  const _SelectorObra({
+    required this.obras,
+    required this.error,
+    required this.seleccionada,
+    required this.onChanged,
+    required this.onReintentar,
+  });
+
+  final List<ObraOpcion>? obras;
+  final String? error;
+  final String? seleccionada;
+  final ValueChanged<String?> onChanged;
+  final VoidCallback onReintentar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'OBRA / FRENTE',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (error != null)
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  error!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 13),
+                ),
+              ),
+              TextButton(onPressed: onReintentar, child: const Text('Reintentar')),
+            ],
+          )
+        else if (obras == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          DropdownButtonFormField<String>(
+            initialValue: seleccionada,
+            onChanged: onChanged,
+            items: obras!
+                .map((o) => DropdownMenuItem(value: o.id, child: Text(o.nombre)))
+                .toList(),
+            validator: (v) => v == null ? 'Requerido' : null,
+            style: const TextStyle(fontSize: 16, color: AppColors.navy),
+          ),
       ],
     );
   }

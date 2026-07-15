@@ -6,9 +6,9 @@ import '../obra_repository.dart';
 /// Decisión de transporte: 100% PowerSync local, sin REST.
 ///
 /// `obras` es de solo lectura desde el cliente (no hay `crear`/`actualizar`
-/// en esta interfaz) y ya está en sync-config.yaml para los tres roles: el
-/// chofer ve la suya (`chofer_obra_catalogo`), administrativo la suya
-/// (`administrativo_obra`) y finanzas todas (`finanzas_global`). Al ser
+/// en esta interfaz) y ya está en sync-config.yaml para los dos roles: el
+/// chofer ve la suya (`chofer_obra_catalogo`) y administrativo todas
+/// (`administrativo_global`, rol único sin restricción de obra). Al ser
 /// puramente de lectura y ya estar replicada, no hay razón para ir a la API
 /// en vez de al catálogo local — y esto además funciona sin conexión, que es
 /// justo cuando más se necesita poder ver el nombre de la propia obra.

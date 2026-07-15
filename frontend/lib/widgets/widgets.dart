@@ -3,6 +3,7 @@ export 'avatar_iniciales.dart';
 export 'carga_simulada.dart';
 export 'cerrar_sesion_button.dart';
 export 'donut_gasto_combustible.dart';
+export 'editar_chofer_dialog.dart';
 export 'estado_solicitud_badge.dart';
 export 'estado_vacio.dart';
 export 'fuel_type_chip_selector.dart';

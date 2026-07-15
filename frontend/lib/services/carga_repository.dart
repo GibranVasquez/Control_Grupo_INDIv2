@@ -20,4 +20,11 @@ abstract class CargaRepository {
 
   /// Sube la foto del ticket guardada localmente y regresa la URL pública.
   Future<String> subirFotoTicket(String cargaId, String rutaLocal);
+
+  /// Sube TODAS las fotos de evidencia de Maquinaria en una sola llamada
+  /// multipart (`POST /cargas/:id/evidencias`, hasta 5 archivos). A
+  /// diferencia de [subirFotoTicket], no hay cola de reintento persistente
+  /// para esto todavía: si falla (sin conexión), el llamador decide qué
+  /// avisarle al chofer.
+  Future<void> subirEvidencias(String cargaId, List<String> rutasLocales);
 }

@@ -113,8 +113,15 @@ class _ChoferHomeContenido extends StatelessWidget {
   final Vehiculo vehiculo;
   final List<SolicitudAutorizacion> solicitudes;
 
+  /// Autorizadas y aún no confirmadas con evidencia (el chofer no ha pasado
+  /// por "Ya cargué · comprobar" en ComprobarCargaPage) — el aviso al abrir
+  /// la app que recuerda subir el ticket antes de que se acumulen varias.
+  int get _pendientesDeEvidencia =>
+      solicitudes.where((s) => s.estado == EstadoSolicitud.autorizado).length;
+
   @override
   Widget build(BuildContext context) {
+    final pendientes = _pendientesDeEvidencia;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ResponsiveCenter(
@@ -131,6 +138,10 @@ class _ChoferHomeContenido extends StatelessWidget {
                   _BotonSolicitar(
                     onTap: () => context.push(AppRoutes.solicitarLitros),
                   ),
+                  if (pendientes > 0) ...[
+                    const SizedBox(height: 16),
+                    _AvisoEvidenciaPendiente(cantidad: pendientes),
+                  ],
                   const SizedBox(height: 28),
                   const Text(
                     'MIS SOLICITUDES',
@@ -160,6 +171,50 @@ class _ChoferHomeContenido extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Recordatorio al abrir la app: solicitudes ya autorizadas que aún no se
+/// han comprobado con foto de ticket. Toca la primera pendiente para abrir
+/// directamente ComprobarCargaPage.
+class _AvisoEvidenciaPendiente extends StatelessWidget {
+  const _AvisoEvidenciaPendiente({required this.cantidad});
+
+  final int cantidad;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.warningBg,
+        border: Border.all(color: AppColors.warningBorder),
+        borderRadius: BorderRadius.circular(AppRadii.miniCard),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.camera_alt_rounded,
+            color: AppColors.warningTextStrong,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              cantidad == 1
+                  ? 'Tienes 1 autorización pendiente: sube la foto del ticket cuando cargues combustible.'
+                  : 'Tienes $cantidad autorizaciones pendientes: sube la foto del ticket de cada una cuando cargues combustible.',
+              style: const TextStyle(
+                color: AppColors.warningTextStrong,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -328,8 +383,14 @@ class _TarjetaSolicitud extends StatelessWidget {
   Widget build(BuildContext context) {
     final fecha = DateFormat("d 'de' MMMM", 'es_MX').format(solicitud.creadoEn);
 
+    // Tocable también si fue rechazada: RespuestaAutorizacionPage es donde el
+    // chofer ve el motivo (solicitud.comentario) — antes solo se abría para
+    // "autorizado", dejando el rechazo sin forma de consultar por qué.
+    final resuelta =
+        solicitud.estado == EstadoSolicitud.autorizado ||
+        solicitud.estado == EstadoSolicitud.rechazado;
     return GestureDetector(
-      onTap: solicitud.estado == EstadoSolicitud.autorizado
+      onTap: resuelta
           ? () =>
                 context.push(AppRoutes.respuestaAutorizacion, extra: solicitud)
           : null,

@@ -1,8 +1,7 @@
 /// Rol del usuario, define qué rama de rutas ve (ver router/).
 enum RolUsuario {
   chofer,
-  administrativo,
-  finanzas;
+  administrativo;
 
   static RolUsuario fromDb(String value) => values.firstWhere(
         (r) => r.name == value,

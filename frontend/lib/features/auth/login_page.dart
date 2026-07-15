@@ -19,7 +19,7 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
-  final _numeroEmpleadoCtrl = TextEditingController();
+  final _usuarioCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _verPassword = false;
 
@@ -44,20 +44,20 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   void dispose() {
-    _numeroEmpleadoCtrl.dispose();
+    _usuarioCtrl.dispose();
     _passwordCtrl.dispose();
     _entradaController.dispose();
     super.dispose();
   }
 
   Future<void> _entrar() async {
-    final numeroEmpleado = _numeroEmpleadoCtrl.text.trim();
+    final usuario = _usuarioCtrl.text.trim();
     final password = _passwordCtrl.text;
-    if (numeroEmpleado.isEmpty || password.isEmpty) return;
+    if (usuario.isEmpty || password.isEmpty) return;
 
     await ref
         .read(authControllerProvider.notifier)
-        .iniciarSesion(numeroEmpleado: numeroEmpleado, password: password);
+        .iniciarSesion(usuario: usuario, password: password);
   }
 
   Future<void> _entrarConBiometria() async {
@@ -89,7 +89,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   /// claro que es un acceso con privilegios.
   Future<void> _entrarComoAdministrador() async {
     final credenciales =
-        await showDialog<({String numeroEmpleado, String password})>(
+        await showDialog<({String usuario, String password})>(
           context: context,
           builder: (_) => const _DialogoAccesoAdmin(),
         );
@@ -98,7 +98,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     await ref
         .read(authControllerProvider.notifier)
         .iniciarSesion(
-          numeroEmpleado: credenciales.numeroEmpleado,
+          usuario: credenciales.usuario,
           password: credenciales.password,
         );
   }
@@ -157,7 +157,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             children: [
                               _Campo(
                                 label: 'USUARIO',
-                                controller: _numeroEmpleadoCtrl,
+                                controller: _usuarioCtrl,
                                 hint: 'antonio.ponce',
                                 mono: true,
                               ),
@@ -461,24 +461,24 @@ class _DialogoAccesoAdmin extends StatefulWidget {
 }
 
 class _DialogoAccesoAdminState extends State<_DialogoAccesoAdmin> {
-  final _numeroEmpleadoCtrl = TextEditingController();
+  final _usuarioCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _verPassword = false;
 
   @override
   void dispose() {
-    _numeroEmpleadoCtrl.dispose();
+    _usuarioCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   void _confirmar() {
-    final numeroEmpleado = _numeroEmpleadoCtrl.text.trim();
+    final usuario = _usuarioCtrl.text.trim();
     final password = _passwordCtrl.text;
-    if (numeroEmpleado.isEmpty || password.isEmpty) return;
+    if (usuario.isEmpty || password.isEmpty) return;
     Navigator.of(
       context,
-    ).pop((numeroEmpleado: numeroEmpleado, password: password));
+    ).pop((usuario: usuario, password: password));
   }
 
   @override
@@ -542,7 +542,7 @@ class _DialogoAccesoAdminState extends State<_DialogoAccesoAdmin> {
                 children: [
                   _Campo(
                     label: 'USUARIO',
-                    controller: _numeroEmpleadoCtrl,
+                    controller: _usuarioCtrl,
                     hint: 'usuario del administrador',
                     mono: true,
                   ),

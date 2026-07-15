@@ -46,10 +46,10 @@ class _TokenFijo extends TokenStorage {
   Future<void> limpiar() async {}
 }
 
-Future<String> _login(Dio dio, String numeroEmpleado) async {
+Future<String> _login(Dio dio, String usuario) async {
   final respuesta = await dio.post<Map<String, dynamic>>(
     '/auth/login',
-    data: {'numero_empleado': numeroEmpleado, 'password': '1234'},
+    data: {'usuario': usuario, 'password': '1234'},
   );
   return respuesta.data!['token'] as String;
 }
@@ -68,8 +68,8 @@ void main() {
 
       // 0. Arma un escenario 100% real contra Railway: login chofer/admin,
       // solicitud creada y autorizada de lleno (sin necesitar comentario).
-      final tokenChofer = await _login(dioLogin, 'EMP-1001');
-      final tokenAdmin = await _login(dioLogin, 'EMP-2001');
+      final tokenChofer = await _login(dioLogin, 'mario');
+      final tokenAdmin = await _login(dioLogin, 'laura');
 
       final dioChofer = Dio(BaseOptions(baseUrl: _baseUrlReal))
         ..options.headers['Authorization'] = 'Bearer $tokenChofer';

@@ -18,6 +18,7 @@ class Carga {
     this.rendimientoLH,
     this.alertaRendimiento,
     this.fotoTicketUrl,
+    this.evidenciaLegible,
     required this.fechaCarga,
     required this.creadoOffline,
     this.sincronizadoEn,
@@ -54,6 +55,10 @@ class Carga {
 
   /// Nulo mientras la foto sigue solo en el dispositivo, sin subir todavía.
   final String? fotoTicketUrl;
+
+  /// Solo para Maquinaria: si el chofer confirmó que el medidor/número se
+  /// alcanza a leer en las fotos de evidencia. Nulo para Vehículo (no aplica).
+  final bool? evidenciaLegible;
   final DateTime fechaCarga;
   final bool creadoOffline;
   final DateTime? sincronizadoEn;
@@ -77,6 +82,7 @@ class Carga {
             ? null
             : AlertaRendimiento.fromDb(json['alerta_rendimiento'] as String),
         fotoTicketUrl: json['foto_ticket_url'] as String?,
+        evidenciaLegible: json['evidencia_legible'] as bool?,
         fechaCarga: DateTime.parse(json['fecha_carga'] as String),
         creadoOffline: json['creado_offline'] as bool,
         sincronizadoEn: json['sincronizado_en'] == null
@@ -101,6 +107,7 @@ class Carga {
         'rendimiento_l_h': rendimientoLH,
         'alerta_rendimiento': alertaRendimiento?.toDb(),
         'foto_ticket_url': fotoTicketUrl,
+        'evidencia_legible': evidenciaLegible,
         'fecha_carga': fechaCarga.toIso8601String(),
         'creado_offline': creadoOffline,
         'sincronizado_en': sincronizadoEn?.toIso8601String(),

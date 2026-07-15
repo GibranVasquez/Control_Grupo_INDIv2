@@ -40,8 +40,8 @@ class PowerSyncCargaRepository implements CargaRepository {
       INSERT INTO cargas
         (id, solicitud_id, chofer_id, vehiculo_id, obra_id, litros, precio_por_litro,
          monto_total, km_actual, km_anterior, horas_actual, horas_anterior,
-         fecha_carga, creado_offline)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         evidencia_legible, fecha_carga, creado_offline)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''',
       [
         id,
@@ -60,6 +60,7 @@ class PowerSyncCargaRepository implements CargaRepository {
         carga.kmAnterior,
         carga.horasActual,
         carga.horasAnterior,
+        switch (carga.evidenciaLegible) { null => null, final v => v ? 1 : 0 },
         carga.fechaCarga.toIso8601String(),
         carga.creadoOffline ? 1 : 0,
       ],
@@ -107,6 +108,15 @@ class PowerSyncCargaRepository implements CargaRepository {
     return respuesta.data!['carga']['foto_ticket_url'] as String;
   }
 
+  @override
+  Future<void> subirEvidencias(String cargaId, List<String> rutasLocales) async {
+    final formData = FormData();
+    for (final ruta in rutasLocales) {
+      formData.files.add(MapEntry('fotos', await MultipartFile.fromFile(ruta)));
+    }
+    await apiClient.dio.post('/cargas/$cargaId/evidencias', data: formData);
+  }
+
   Map<String, dynamic> _filaAJson(Map<String, dynamic> fila) => {
         'id': fila['id'],
         'solicitud_id': fila['solicitud_id'],
@@ -124,6 +134,9 @@ class PowerSyncCargaRepository implements CargaRepository {
         'rendimiento_l_h': fila['rendimiento_l_h'],
         'alerta_rendimiento': fila['alerta_rendimiento'],
         'foto_ticket_url': fila['foto_ticket_url'],
+        'evidencia_legible': (fila['evidencia_legible'] as int?) == null
+            ? null
+            : fila['evidencia_legible'] == 1,
         'fecha_carga': fila['fecha_carga'],
         'creado_offline': fila['creado_offline'] == 1,
         'sincronizado_en': fila['sincronizado_en'],

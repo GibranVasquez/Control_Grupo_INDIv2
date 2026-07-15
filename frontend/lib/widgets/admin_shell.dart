@@ -13,8 +13,8 @@ class AdminNavItem {
 }
 
 /// Layout compartido del panel web: sidebar navy fija + contenido central.
-/// Lo usan tanto administrativo (bandeja/concentrado/vehículos, filtrado por obra)
-/// como finanzas (reportes consolidados, sin filtro de obra).
+/// Único rol de administrador (bandeja/concentrado/vehículos/reportes/
+/// usuarios), sin restricción de obra.
 class AdminShell extends StatelessWidget {
   const AdminShell({
     super.key,
@@ -237,12 +237,16 @@ class _ItemNav extends StatelessWidget {
                   color: activo ? Colors.white : Colors.white60,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  item.etiqueta,
-                  style: TextStyle(
-                    color: activo ? Colors.white : Colors.white60,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13.5,
+                Expanded(
+                  child: Text(
+                    item.etiqueta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: activo ? Colors.white : Colors.white60,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
                   ),
                 ),
               ],

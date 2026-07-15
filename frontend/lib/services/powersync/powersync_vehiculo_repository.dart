@@ -7,8 +7,8 @@ import '../vehiculo_repository.dart';
 /// Decisión de transporte para `vehiculos`:
 ///
 /// - Lecturas ([listarPorObra], [obtenerPorId]): PowerSync local. La tabla
-///   ya está en sync-config.yaml para los tres roles (`chofer_obra_catalogo`,
-///   `administrativo_obra`, `finanzas_global`), y el chofer la necesita sin
+///   ya está en sync-config.yaml para los dos roles (`chofer_obra_catalogo`,
+///   `administrativo_global`), y el chofer la necesita sin
 ///   red para poder armar una solicitud de combustible offline (elegir su
 ///   vehículo, ver su tope semanal) — es justo el caso que offline-first
 ///   tiene que cubrir, aunque sea "catálogo" y no una escritura.

@@ -8,14 +8,14 @@ class AuthController extends Notifier<AsyncValue<void>> {
   AsyncValue<void> build() => const AsyncValue.data(null);
 
   Future<void> iniciarSesion({
-    required String numeroEmpleado,
+    required String usuario,
     required String password,
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final perfil = await ref
           .read(perfilRepositoryProvider)
-          .iniciarSesion(numeroEmpleado: numeroEmpleado, password: password);
+          .iniciarSesion(usuario: usuario, password: password);
       // El JWT ya quedó guardado en TokenStorage dentro de iniciarSesion() de
       // ApiPerfilRepository; PowerSync reutiliza ese mismo token al conectar
       // (ver services/powersync/powersync_client.dart), sin login aparte.
@@ -33,31 +33,44 @@ class AuthController extends Notifier<AsyncValue<void>> {
       ref.read(sesionProvider.notifier).iniciarSesion(perfil);
       await ref
           .read(credencialesStorageProvider)
-          .guardar(usuario: numeroEmpleado, password: password);
+          .guardar(usuario: usuario, password: password);
     });
   }
 
   /// Autoregistro público de chofer (ver registro_chofer_page.dart): crea el
-  /// perfil ya activo y deja la sesión lista, igual que [iniciarSesion].
+  /// perfil junto con su propia unidad (vehículo/maquinaria) ya enlazada,
+  /// pero NO inicia sesión — se redirige a login para que entre ya con su
+  /// cuenta completa en vez de aterrizar de inmediato en el home.
   Future<void> registrarChofer({
     required String nombreCompleto,
-    required String numeroEmpleado,
+    required String usuario,
     required String password,
+    required String obraId,
+    required String placa,
+    required String tipoUnidad,
+    required String tipoCombustible,
+    String? correo,
+    int? edad,
     String? area,
   }) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final perfil = await ref.read(perfilRepositoryProvider).registrarChofer(
+      await ref.read(perfilRepositoryProvider).registrarChofer(
             nombreCompleto: nombreCompleto,
-            numeroEmpleado: numeroEmpleado,
+            usuario: usuario,
             password: password,
+            obraId: obraId,
+            placa: placa,
+            tipoUnidad: tipoUnidad,
+            tipoCombustible: tipoCombustible,
+            correo: correo,
+            edad: edad,
             area: area,
           );
-      ref.read(sesionProvider.notifier).iniciarSesion(perfil);
-      await ref.read(powerSyncClientProvider).conectar();
-      await ref
-          .read(credencialesStorageProvider)
-          .guardar(usuario: numeroEmpleado, password: password);
+      // registrarChofer() ya guardó el token en TokenStorage (necesita
+      // mandarlo aunque sea de paso, ver ApiPerfilRepository); como aquí NO
+      // iniciamos sesión, se limpia para no dejar un JWT válido huérfano.
+      await ref.read(tokenStorageProvider).limpiar();
     });
   }
 
@@ -70,7 +83,7 @@ class AuthController extends Notifier<AsyncValue<void>> {
     final autenticado = await ref.read(biometriaServiceProvider).autenticar();
     if (!autenticado) return false;
 
-    await iniciarSesion(numeroEmpleado: credenciales.usuario, password: credenciales.password);
+    await iniciarSesion(usuario: credenciales.usuario, password: credenciales.password);
     return state.hasError == false;
   }
 

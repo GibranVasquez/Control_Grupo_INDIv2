@@ -179,6 +179,8 @@ class ApiPowerSyncConnector extends PowerSyncBackendConnector {
       'litros': datos['litros'],
       if (datos['km_actual'] != null) 'km_actual': datos['km_actual'],
       if (datos['horas_actual'] != null) 'horas_actual': datos['horas_actual'],
+      if (datos['evidencia_legible'] != null)
+        'evidencia_legible': datos['evidencia_legible'] == 1,
       'creado_offline': datos['creado_offline'] == 1,
     });
   }

@@ -30,7 +30,7 @@ import 'package:gi_control_combustible/state/session_provider.dart';
 const _perfilChofer = Perfil(
   id: 'perfil-chofer-prueba',
   authUserId: 'auth-chofer-prueba',
-  numeroEmpleado: 'EMP-1001',
+  usuario: 'mario',
   nombreCompleto: 'Juan Pérez',
   rol: RolUsuario.chofer,
   obraId: 'obra-prueba',
@@ -41,7 +41,7 @@ const _perfilChofer = Perfil(
 class _PerfilRepositoryFake implements PerfilRepository {
   @override
   Future<Perfil> iniciarSesion({
-    required String numeroEmpleado,
+    required String usuario,
     required String password,
   }) async =>
       _perfilChofer;
@@ -55,15 +55,32 @@ class _PerfilRepositoryFake implements PerfilRepository {
   @override
   Future<void> actualizarActivo(String perfilId, bool activo) => throw UnimplementedError();
   @override
-  Future<Perfil> crear({
+  Future<Perfil> actualizar({
+    required String perfilId,
+    required String obraId,
+    String? nombreCompleto,
+    String? correo,
+    int? edad,
+    String? area,
+    String? vehiculoId,
+  }) =>
+      throw UnimplementedError();
+  @override
+  Future<Perfil> registrarChofer({
     required String nombreCompleto,
-    required String numeroEmpleado,
+    required String usuario,
     required String password,
     required String obraId,
-    String? vehiculoId,
+    required String placa,
+    required String tipoUnidad,
+    required String tipoCombustible,
+    String? correo,
+    int? edad,
     String? area,
   }) =>
       throw UnimplementedError();
+  @override
+  Future<List<ObraOpcion>> obrasDisponibles() => throw UnimplementedError();
 }
 
 /// Registra en [eventos] cuándo arranca y termina `conectar()` — simula una
@@ -125,7 +142,7 @@ void main() {
 
       await container
           .read(authControllerProvider.notifier)
-          .iniciarSesion(numeroEmpleado: 'EMP-1001', password: '1234');
+          .iniciarSesion(usuario: 'mario', password: '1234');
 
       expect(eventos, ['conectar:inicio', 'conectar:fin', 'sesion:marcada']);
       expect(container.read(sesionProvider), _perfilChofer);

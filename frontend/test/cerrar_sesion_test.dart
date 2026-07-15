@@ -57,7 +57,7 @@ class _TokenStorageFake extends TokenStorage {
 }
 
 class _CredencialesStorageFake extends CredencialesStorage {
-  ({String usuario, String password})? valor = (usuario: 'EMP-2001', password: '1234');
+  ({String usuario, String password})? valor = (usuario: 'laura', password: '1234');
 
   @override
   Future<({String usuario, String password})?> leer() async => valor;
@@ -140,7 +140,7 @@ void main() {
       const perfilAdmin = Perfil(
         id: 'perfil-prueba',
         authUserId: 'auth-prueba',
-        numeroEmpleado: 'EMP-2001',
+        usuario: 'laura',
         nombreCompleto: 'Admin de Prueba',
         rol: RolUsuario.administrativo,
         obraId: null,

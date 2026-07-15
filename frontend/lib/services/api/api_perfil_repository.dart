@@ -16,10 +16,11 @@ import 'token_storage.dart';
 /// - [listarPorObra]: lectura del catálogo local de PowerSync. `perfiles` sí
 ///   está en sync-config.yaml para administrativo (su obra) y finanzas
 ///   (todas), que son los únicos roles que llaman a este método.
-/// - [actualizarActivo]: API REST directa (`PUT /perfiles/:id/activo`). No
-///   pasa por PowerSync (sync-config.yaml solo replica `perfiles` de
-///   solo lectura); el cambio llega de vuelta al catálogo local en la
-///   siguiente sincronización normal, igual que vehiculos.crear/actualizar.
+/// - [actualizarActivo] / [actualizar]: API REST directa (`PUT
+///   /perfiles/:id/activo`, `PUT /perfiles/:id`). No pasan por PowerSync
+///   (sync-config.yaml solo replica `perfiles` de solo lectura); el cambio
+///   llega de vuelta al catálogo local en la siguiente sincronización normal,
+///   igual que vehiculos.crear/actualizar.
 class ApiPerfilRepository implements PerfilRepository {
   ApiPerfilRepository({
     required this.apiClient,
@@ -33,12 +34,12 @@ class ApiPerfilRepository implements PerfilRepository {
 
   @override
   Future<Perfil> iniciarSesion({
-    required String numeroEmpleado,
+    required String usuario,
     required String password,
   }) async {
     final respuesta = await apiClient.dio.post<Map<String, dynamic>>(
       '/auth/login',
-      data: {'numero_empleado': numeroEmpleado, 'password': password},
+      data: {'usuario': usuario, 'password': password},
     );
     final cuerpo = respuesta.data!;
     await tokenStorage.guardar(cuerpo['token'] as String);
@@ -72,38 +73,54 @@ class ApiPerfilRepository implements PerfilRepository {
   }
 
   @override
-  Future<Perfil> crear({
-    required String nombreCompleto,
-    required String numeroEmpleado,
-    required String password,
+  Future<Perfil> actualizar({
+    required String perfilId,
     required String obraId,
-    String? vehiculoId,
+    String? nombreCompleto,
+    String? correo,
+    int? edad,
     String? area,
+    String? vehiculoId,
   }) async {
-    final respuesta = await apiClient.dio.post<Map<String, dynamic>>('/perfiles', data: {
-      'nombre_completo': nombreCompleto,
-      'numero_empleado': numeroEmpleado,
-      'password': password,
-      'obra_id': obraId,
-      'vehiculo_id': ?vehiculoId,
-      'area': ?area,
-    });
+    final respuesta = await apiClient.dio.put<Map<String, dynamic>>(
+      '/perfiles/$perfilId',
+      data: {
+        'obra_id': obraId,
+        'nombre_completo': ?nombreCompleto,
+        'correo': ?correo,
+        'edad': ?edad,
+        'area': ?area,
+        'vehiculo_id': ?vehiculoId,
+      },
+    );
     return Perfil.fromJson(respuesta.data!['perfil'] as Map<String, dynamic>);
   }
 
   @override
   Future<Perfil> registrarChofer({
     required String nombreCompleto,
-    required String numeroEmpleado,
+    required String usuario,
     required String password,
+    required String obraId,
+    required String placa,
+    required String tipoUnidad,
+    required String tipoCombustible,
+    String? correo,
+    int? edad,
     String? area,
   }) async {
     final respuesta = await apiClient.dio.post<Map<String, dynamic>>(
       '/auth/registro-chofer',
       data: {
         'nombre_completo': nombreCompleto,
-        'numero_empleado': numeroEmpleado,
+        'usuario': usuario,
         'password': password,
+        'obra_id': obraId,
+        'placa': placa,
+        'tipo_unidad': tipoUnidad,
+        'tipo_combustible': tipoCombustible,
+        'correo': ?correo,
+        'edad': ?edad,
         'area': ?area,
       },
     );
@@ -112,12 +129,25 @@ class ApiPerfilRepository implements PerfilRepository {
     return Perfil.fromJson(cuerpo['perfil'] as Map<String, dynamic>);
   }
 
+  @override
+  Future<List<ObraOpcion>> obrasDisponibles() async {
+    final respuesta = await apiClient.dio.get<Map<String, dynamic>>(
+      '/auth/obras-disponibles',
+    );
+    final lista = respuesta.data!['obras'] as List<dynamic>;
+    return lista
+        .map((o) => ObraOpcion.fromJson(o as Map<String, dynamic>))
+        .toList();
+  }
+
   Map<String, dynamic> _filaAJson(Map<String, dynamic> fila) => {
         'id': fila['id'],
         'auth_user_id': fila['auth_user_id'],
-        'numero_empleado': fila['numero_empleado'],
+        'usuario': fila['usuario'],
         'nombre_completo': fila['nombre_completo'],
         'rol': fila['rol'],
+        'correo': fila['correo'],
+        'edad': fila['edad'],
         'obra_id': fila['obra_id'],
         'vehiculo_id': fila['vehiculo_id'],
         'area': fila['area'],

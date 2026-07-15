@@ -226,45 +226,47 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
               kmAnterior: esMaquinaria ? null : anterior,
               horasActual: esMaquinaria ? actual : null,
               horasAnterior: esMaquinaria ? anterior : null,
+              evidenciaLegible: esMaquinaria ? _evidenciaLegible : null,
               fechaCarga: DateTime.now(),
               creadoOffline: false,
             ),
           );
 
-      // El backend hoy solo guarda una foto por carga (foto_ticket_url,
-      // ver backend/src/controllers/carga.controller.ts). Para Vehículo esa
-      // foto es el ticket; para Maquinaria/evidencia múltiple se sube la
-      // primera foto de evidencia por ahora — guardar las demás requiere que
-      // el backend agregue una tabla de evidencias (pendiente, fuera de
-      // alcance del frontend: no se debe improvisar en la base compartida).
-      final rutaFoto = esMaquinaria
-          ? _fotosEvidencia.first.path
-          : _fotoTicket!.path;
-      final subioFoto = await _subirFotoConReintentos(cargaId, rutaFoto);
-      if (!subioFoto) {
-        // Sin conexión (o la carga todavía no sincronizó): se encola para
-        // subirse sola en cuanto la app detecte conexión de nuevo, sin que el
-        // chofer tenga que volver a esta pantalla (ver
-        // colaFotosTicketWatcherProvider en state/providers.dart).
-        await ref
-            .read(colaFotosTicketServiceProvider)
-            .agregar(cargaId: cargaId, rutaLocal: rutaFoto);
+      String mensaje;
+      if (esMaquinaria) {
+        // Todas las fotos de evidencia van en una sola llamada multipart
+        // (POST /cargas/:id/evidencias, hasta 5). A diferencia del ticket de
+        // Vehículo, no hay cola de reintento persistente todavía: si falla
+        // (sin conexión), las fotos quedan solo en el dispositivo y el
+        // chofer tendría que reintentar manualmente — aceptable por ahora,
+        // ya que la carga en sí (lo que importa para litros/consumo) sí
+        // quedó guardada de inmediato, offline-first, como siempre.
+        final subieron = await _subirEvidenciasConReintentos(
+          cargaId,
+          _fotosEvidencia.map((f) => f.path).toList(),
+        );
+        mensaje = subieron
+            ? 'Carga registrada y evidencia subida correctamente.'
+            : 'Carga registrada, pero no se pudo subir la evidencia por falta de conexión. Vuelve a intentarlo cuando tengas señal.';
+      } else {
+        final rutaFoto = _fotoTicket!.path;
+        final subioFoto = await _subirFotoConReintentos(cargaId, rutaFoto);
+        if (!subioFoto) {
+          // Sin conexión (o la carga todavía no sincronizó): se encola para
+          // subirse sola en cuanto la app detecte conexión de nuevo, sin que
+          // el chofer tenga que volver a esta pantalla (ver
+          // colaFotosTicketWatcherProvider en state/providers.dart).
+          await ref
+              .read(colaFotosTicketServiceProvider)
+              .agregar(cargaId: cargaId, rutaLocal: rutaFoto);
+        }
+        mensaje = subioFoto
+            ? 'Carga registrada y evidencia subida correctamente.'
+            : 'Carga registrada. La evidencia se subirá automáticamente en cuanto se recupere la conexión.';
       }
       if (!mounted) return;
 
-      final avisoEvidenciasExtra = esMaquinaria && _fotosEvidencia.length > 1
-          ? ' Solo la primera foto de evidencia se guardó; el resto se conservan en tu equipo hasta que exista un lugar para varias.'
-          : '';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            (subioFoto
-                    ? 'Carga registrada y evidencia subida correctamente.'
-                    : 'Carga registrada. La evidencia se subirá automáticamente en cuanto se recupere la conexión.') +
-                avisoEvidenciasExtra,
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
       context.go('/chofer');
     } catch (e) {
       if (!mounted) return;
@@ -288,6 +290,22 @@ class _ComprobarCargaPageState extends ConsumerState<ComprobarCargaPage> {
         await ref
             .read(cargaRepositoryProvider)
             .subirFotoTicket(cargaId, rutaLocal);
+        return true;
+      } catch (_) {
+        if (i == intentos - 1) return false;
+        await Future.delayed(Duration(milliseconds: 600 * (i + 1)));
+      }
+    }
+    return false;
+  }
+
+  /// Mismo criterio de reintento que [_subirFotoConReintentos], pero para
+  /// todas las fotos de evidencia en una sola llamada.
+  Future<bool> _subirEvidenciasConReintentos(String cargaId, List<String> rutas) async {
+    const intentos = 4;
+    for (var i = 0; i < intentos; i++) {
+      try {
+        await ref.read(cargaRepositoryProvider).subirEvidencias(cargaId, rutas);
         return true;
       } catch (_) {
         if (i == intentos - 1) return false;
