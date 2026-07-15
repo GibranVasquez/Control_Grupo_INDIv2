@@ -121,7 +121,7 @@ model Obra {
 model Perfil {
   id             String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   authUserId     String     @unique @default(dbgenerated("uuid_generate_v4()")) @map("auth_user_id") @db.Uuid
-  usuario        String     @unique @map("numero_empleado")
+  usuario        String     @unique
   passwordHash   String     @map("password_hash")
   nombreCompleto String     @map("nombre_completo")
   rol            RolUsuario

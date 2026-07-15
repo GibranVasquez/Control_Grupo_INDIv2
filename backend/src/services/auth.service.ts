@@ -171,20 +171,18 @@ export async function registrarChofer(datos: DatosRegistroChofer): Promise<Resul
       // está registrado?" (mismo criterio anti-enumeración que
       // perfil.service.ts#actualizar usa para vehiculo_id de otra obra).
       //
-      // "numero_empleado" aquí es el nombre de la COLUMNA física en Postgres
-      // (distinto ya del campo `usuario` del wire/Prisma desde la Etapa 3.5
-      // del rename) — pendiente de actualizar a "usuario" cuando se aplique
-      // el ALTER TABLE de la Etapa 4. Nota: en la práctica este chequeo no
-      // se dispara nunca con el driver adapter actual (@prisma/adapter-pg),
-      // que no llena `error.meta.target` — ver hallazgo anotado aparte, no
-      // se corrige aquí.
+      // "usuario" ya es el nombre real de la columna en Postgres (renombrada
+      // en la Etapa 4 del rename, antes numero_empleado). Nota: en la
+      // práctica este chequeo no se dispara nunca con el driver adapter
+      // actual (@prisma/adapter-pg), que no llena `error.meta.target` — ver
+      // hallazgo anotado aparte, no se corrige aquí.
       const campos = (error.meta?.target as string[] | undefined) ?? [];
       // Solo se hace eco del usuario cuando el conflicto es inequívocamente
       // ese campo; cualquier otro caso (correo, o formato de error
       // inesperado) usa el mensaje genérico, para no arriesgarse a confirmar
       // la existencia de un correo por una mala interpretación del error de
       // Postgres.
-      if (campos.length === 1 && campos[0] === "numero_empleado") {
+      if (campos.length === 1 && campos[0] === "usuario") {
         throw new AppError(409, `Ya existe una cuenta con el usuario "${datos.usuario}".`);
       }
       throw new AppError(409, "No se pudo completar el registro con los datos proporcionados.");

@@ -11,12 +11,20 @@
 -- Después de correrlo, en un proyecto NUEVO (repo sin schema.prisma todavía):
 --   npx prisma db pull && npx prisma generate
 -- En un clon normal de este repo (schema.prisma ya existe y está mantenido a
--- mano, con @map en campos renombrados respecto al nombre de columna, ej.
--- `usuario` mapeado a la columna numero_empleado): SOLO
+-- mano): SOLO
 --   npx prisma generate
 -- NO vuelvas a correr `prisma db pull` — reintrospeccionaría la base y
--- sobreescribiría schema.prisma con los nombres de columna crudos,
--- perdiendo esos renombres manuales.
+-- sobreescribiría schema.prisma con cualquier ajuste manual que ya no
+-- coincida con el nombre crudo de la columna (ej. un futuro @map de
+-- renombrado en progreso), perdiendo esos cambios.
+-- =====================================================================
+-- Nota de mantenimiento (2026-07-14): la columna perfiles.numero_empleado
+-- se renombró a perfiles.usuario (ALTER TABLE ... RENAME COLUMN, operación
+-- de metadata, sin pérdida de datos) para que el nombre coincida con lo que
+-- expone la API (antes numero_empleado, ver DECISIONES.md o el historial de
+-- commits de backend/src/services/auth.service.ts). Este script ya crea la
+-- columna directamente como `usuario` (sección 3) — un clon nuevo desde cero
+-- no necesita ningún paso adicional.
 -- =====================================================================
 -- Nota de mantenimiento (2026-07-10): las 4 vistas que dependían de la
 -- tabla "cargas" (vista_consumo_semanal_por_obra, vista_consumo_semanal_global,
@@ -81,7 +89,7 @@ create table obras (
 create table perfiles (
   id uuid primary key default uuid_generate_v4(),
   auth_user_id uuid unique not null default uuid_generate_v4(),
-  numero_empleado text unique not null,
+  usuario text unique not null,
   password_hash text not null,  -- bcrypt, generado por el backend (auth.routes.ts)
   nombre_completo text not null,
   rol rol_usuario not null,
@@ -441,7 +449,7 @@ insert into fondo_semanal (obra_id, numero_semana, periodo_inicio, periodo_fin, 
 -- se inserta la contraseña en texto plano directamente por SQL. Ejemplo de shape
 -- una vez generado el hash desde Node (bcrypt.hashSync('la-contraseña', 10)):
 --
--- insert into perfiles (numero_empleado, password_hash, nombre_completo, rol, obra_id, vehiculo_id) values
+-- insert into perfiles (usuario, password_hash, nombre_completo, rol, obra_id, vehiculo_id) values
 --   ('EMP-1001', '<hash-bcrypt>', 'Juan Pérez', 'chofer', 'a1000000-0000-0000-0000-000000000001', 'b2000000-0000-0000-0000-000000000001'),
 --   ('EMP-2001', '<hash-bcrypt>', 'María López', 'administrativo', 'a1000000-0000-0000-0000-000000000001', null),
 --   ('EMP-3001', '<hash-bcrypt>', 'Carlos Ruiz', 'finanzas', null, null);

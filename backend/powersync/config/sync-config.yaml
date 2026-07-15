@@ -52,7 +52,7 @@ bucket_definitions:
       - SELECT * FROM solicitudes_autorizacion WHERE obra_id = bucket.obra_id
       - SELECT * FROM cargas WHERE obra_id = bucket.obra_id
       - SELECT * FROM vehiculos WHERE obra_id = bucket.obra_id
-      - SELECT id, auth_user_id, numero_empleado, nombre_completo, rol, obra_id, vehiculo_id, area, activo
+      - SELECT id, auth_user_id, usuario, nombre_completo, rol, obra_id, vehiculo_id, area, activo
         FROM perfiles WHERE obra_id = bucket.obra_id
       - SELECT * FROM obras WHERE id = bucket.obra_id
 
@@ -72,7 +72,7 @@ bucket_definitions:
       - SELECT * FROM solicitudes_autorizacion
       - SELECT * FROM cargas
       - SELECT * FROM vehiculos
-      - SELECT id, auth_user_id, numero_empleado, nombre_completo, rol, obra_id, vehiculo_id, area, activo
+      - SELECT id, auth_user_id, usuario, nombre_completo, rol, obra_id, vehiculo_id, area, activo
         FROM perfiles
       - SELECT * FROM obras
 
